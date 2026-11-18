@@ -20,7 +20,7 @@ document.getElementById('tema').onclick = () => {
 
 function render() {
   const f = FERRAMENTAS.find(x => x.id === location.hash.slice(1) && x.montar);
-  document.onpaste = null; app.replaceChildren();
+  document.onpaste = document.onkeydown = null; app.replaceChildren();
   if (!f) {
     app.innerHTML = `<h1>Todas as ferramentas de imagem em um só lugar.</h1>
       <p class="sub">Grátis. Tudo acontece no seu navegador: suas imagens não são enviadas para ninguém.</p>
