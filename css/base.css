@@ -38,3 +38,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid
 .toast{position:fixed;left:50%;bottom:1.2rem;transform:translate(-50%,2rem);opacity:0;padding:.7rem 1.1rem;border-radius:10px;background:var(--painel);border:1px solid var(--linha);transition:.2s;pointer-events:none}
 .toast.visivel{opacity:1;transform:translate(-50%,0)}.toast.erro{color:var(--erro)}.toast.ok{color:var(--ok)}
 @media(prefers-reduced-motion:reduce){.toast{transition:none}}
+.mini{display:flex;gap:.8rem;align-items:end;flex-wrap:wrap;padding:.4rem 0}
+.mini canvas{border:1px solid var(--linha);background:repeating-conic-gradient(var(--xa) 0 25%,var(--xb) 0 50%) 0 0/8px 8px}
+input[type=text]{padding:.4rem;border:1px solid var(--linha);border-radius:6px;background:var(--painel);color:inherit;flex:1;min-width:10rem}
+textarea{width:100%;font:.85rem ui-monospace,Consolas,monospace;background:var(--painel);color:inherit;border:1px solid var(--linha);border-radius:6px;padding:.5rem}
