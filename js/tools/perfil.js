@@ -46,6 +46,7 @@ export function montarPerfil(raiz) {
   $('#bArq').onclick = ev => { ev.preventDefault(); arq.click(); };
   $('#bCam').onclick = () => cam.click();
   $('#trocar').onclick = () => arq.click();
+  raiz.querySelector('form').onsubmit = ev => ev.preventDefault();
 
   const nivel = k => { while (cadeia.length <= k) cadeia.push(metade(cadeia.at(-1))); return cadeia[k]; };
   const caminho = (c, t, m = 0) => {
