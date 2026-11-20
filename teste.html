@@ -43,7 +43,7 @@ if (ex) {
     const w = await import('./js/services/webp-anim.js'); await import('./js/services/animados.js'); const partes = [];
     for (const cor of ['#e33', '#33e']) { const c = document.createElement('canvas'); c.width = c.height = 16; const x = c.getContext('2d'); x.fillStyle = cor; x.fillRect(0, 0, 8, 16); partes.push({ blob: await ex.codificar(c, 'webp', 0.9), ms: 120 }); }
     const b = await w.montarWebpAnimado(partes, 16, 16, 0), v = await w.validarWebpAnimado(b); let lido = '';
-    if (typeof ImageDecoder !== 'undefined') { const d = new ImageDecoder({ data: await b.arrayBuffer(), type: 'image/webp' }); await d.completed; lido = `, o navegador leu ${d.tracks.selectedTrack.frameCount} quadros`; d.close(); }
+    if (typeof ImageDecoder !== 'undefined') { const d = new ImageDecoder({ data: await b.arrayBuffer(), type: 'image/webp' }); await d.tracks.ready; await d.completed; lido = `, o navegador leu ${d.tracks.selectedTrack.frameCount} quadros`; d.close(); }
     return `${b.size} bytes, ${v.quadros} quadros${lido}`;
   });
   if (ico) await tenta('ICO multi-tamanho', async () => { const b = await ico.gerarIco([16, 32, 48], t => { const c = document.createElement('canvas'); c.width = c.height = t; return c; }); return (await ex.lerAssinatura(b)) === 'ico' ? 'assinatura ico' : (() => { throw new Error('assinatura inválida'); })(); });
