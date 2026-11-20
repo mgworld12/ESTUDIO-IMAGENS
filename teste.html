@@ -16,7 +16,7 @@ button{font:inherit;padding:.5rem 1rem;margin-top:1rem}</style>
 <button id="copiar" type="button">Copiar resultado</button>
 <script type="module">
 const ARQUIVOS = ['index.html','css/base.css','js/app.js','js/core/imagem.js','js/core/quadro.js','js/services/exportar.js','js/services/ico.js',
-  'js/tools/perfil.js','js/tools/favicon.js','js/tools/icone-pasta.js','js/tools/sticker.js','js/tools/animacao.js','js/services/gif.js','vendor/gifenc.esm.js','js/utils/avisar.js','js/data/presets-redes.js'];
+  'js/tools/perfil.js','js/tools/favicon.js','js/tools/icone-pasta.js','js/tools/sticker.js','js/tools/animacao.js','js/services/gif.js','js/services/webp-anim.js','js/services/animados.js','vendor/gifenc.esm.js','js/utils/avisar.js','js/data/presets-redes.js'];
 let falhas = 0, texto = [];
 const linha = (ul, cls, msg) => { const li = Object.assign(document.createElement('li'), { className: cls, textContent: msg }); document.getElementById(ul).append(li); texto.push((cls === 'ok' ? 'OK   ' : cls === 'erro' ? 'ERRO ' : 'INFO ') + msg); if (cls === 'erro') falhas++; };
 const base = location.href.replace(/[^/]*$/, '');
@@ -39,6 +39,13 @@ if (ex) {
   for (const f of ['png', 'jpg', 'webp']) await tenta(`Gera ${f.toUpperCase()} de verdade`, async () => { const b = await ex.codificar(tela(), f); return ex.lerAssinatura(b).then(s => `${b.size} bytes, assinatura ${s}`); });
   await tenta('ZIP válido', async () => { const z = await ex.zip([{ nome: 'a.txt', blob: new Blob(['oi']) }]); const h = new Uint8Array(await z.slice(0, 2).arrayBuffer()); if (h[0] !== 0x50 || h[1] !== 0x4b) throw new Error('assinatura inválida'); return z.size + ' bytes'; });
   await tenta('GIF animado (gifenc)', async () => { const g = await import('./js/services/gif.js'); const b = await g.codificarGif([0, 1].map(i => ({ data: new Uint8ClampedArray(256).fill(i * 120), ms: 100 })), 8, 8, {}); if (await ex.lerAssinatura(b) !== 'gif') throw new Error('assinatura inválida'); return b.size + ' bytes, 2 quadros'; });
+  await tenta('WebP animado (montagem e leitura)', async () => {
+    const w = await import('./js/services/webp-anim.js'); await import('./js/services/animados.js'); const partes = [];
+    for (const cor of ['#e33', '#33e']) { const c = document.createElement('canvas'); c.width = c.height = 16; const x = c.getContext('2d'); x.fillStyle = cor; x.fillRect(0, 0, 8, 16); partes.push({ blob: await ex.codificar(c, 'webp', 0.9), ms: 120 }); }
+    const b = await w.montarWebpAnimado(partes, 16, 16, 0), v = await w.validarWebpAnimado(b); let lido = '';
+    if (typeof ImageDecoder !== 'undefined') { const d = new ImageDecoder({ data: await b.arrayBuffer(), type: 'image/webp' }); await d.completed; lido = `, o navegador leu ${d.tracks.selectedTrack.frameCount} quadros`; d.close(); }
+    return `${b.size} bytes, ${v.quadros} quadros${lido}`;
+  });
   if (ico) await tenta('ICO multi-tamanho', async () => { const b = await ico.gerarIco([16, 32, 48], t => { const c = document.createElement('canvas'); c.width = c.height = t; return c; }); return (await ex.lerAssinatura(b)) === 'ico' ? 'assinatura ico' : (() => { throw new Error('assinatura inválida'); })(); });
 }
 if (pr) await tenta('Presets de redes sociais', async () => pr.PRESETS.length + ' redes');
