@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Teste do IMAGE STUDIO</title>
+<style>body{font:15px system-ui,sans-serif;max-width:46rem;margin:1.5rem auto;padding:0 1rem;line-height:1.5}h2{margin:1.4rem 0 .3rem;font-size:1.05rem}
+ul{list-style:none;padding:0;margin:0}li{margin:.15rem 0}.ok::before{content:"✔ ";color:#13795b}.erro::before{content:"✖ ";color:#c62d3b}.erro{color:#c62d3b;font-weight:600}.info::before{content:"• ";color:#888}
+button{font:inherit;padding:.5rem 1rem;margin-top:1rem}</style>
+</head>
+<body>
+<h1>Teste do IMAGE STUDIO</h1>
+<p id="resumo">Verificando…</p>
+<h2>1. Arquivos publicados</h2><ul id="arq"></ul>
+<h2>2. Funcionamento</h2><ul id="fun"></ul>
+<h2>3. Recursos deste navegador</h2><ul id="rec"></ul>
+<button id="copiar" type="button">Copiar resultado</button>
+<script type="module">
+const ARQUIVOS = ['index.html','css/base.css','js/app.js','js/core/imagem.js','js/core/quadro.js','js/services/exportar.js','js/services/ico.js',
+  'js/tools/perfil.js','js/tools/favicon.js','js/tools/icone-pasta.js','js/tools/sticker.js','js/utils/avisar.js','js/data/presets-redes.js'];
+let falhas = 0, texto = [];
+const linha = (ul, cls, msg) => { const li = Object.assign(document.createElement('li'), { className: cls, textContent: msg }); document.getElementById(ul).append(li); texto.push((cls === 'ok' ? 'OK   ' : cls === 'erro' ? 'ERRO ' : 'INFO ') + msg); if (cls === 'erro') falhas++; };
+const base = location.href.replace(/[^/]*$/, '');
+
+for (const a of ARQUIVOS) {
+  try { const r = await fetch(base + a, { cache: 'no-store' }); const t = await r.text();
+    r.ok && t.length > 20 ? linha('arq', 'ok', `${a} (${(t.length / 1024).toFixed(1)} KB)`) : linha('arq', 'erro', `${a}: não encontrado ou vazio (HTTP ${r.status})`);
+  } catch (e) { linha('arq', 'erro', `${a}: ${e.message}`); }
+}
+
+const tenta = async (nome, fn) => { try { const r = await fn(); linha('fun', 'ok', nome + (r ? ' — ' + r : '')); } catch (e) { linha('fun', 'erro', `${nome}: ${e.message}`); } };
+let ex, ico, pr;
+await tenta('Módulos carregam (exportar, ico, avisar, imagem, quadro, perfil, favicon, ícone de pasta, sticker)', async () => {
+  ex = await import('./js/services/exportar.js'); ico = await import('./js/services/ico.js');
+  for (const m of ['utils/avisar', 'core/imagem', 'core/quadro', 'tools/perfil', 'tools/favicon', 'tools/icone-pasta', 'tools/sticker']) await import(`./js/${m}.js`);
+  pr = await import('./js/data/presets-redes.js');
+});
+const tela = () => { const c = document.createElement('canvas'); c.width = c.height = 16; const x = c.getContext('2d'); x.fillStyle = '#2457f5'; x.fillRect(0, 0, 16, 16); return c; };
+if (ex) {
+  for (const f of ['png', 'jpg', 'webp']) await tenta(`Gera ${f.toUpperCase()} de verdade`, async () => { const b = await ex.codificar(tela(), f); return ex.lerAssinatura(b).then(s => `${b.size} bytes, assinatura ${s}`); });
+  await tenta('ZIP válido', async () => { const z = await ex.zip([{ nome: 'a.txt', blob: new Blob(['oi']) }]); const h = new Uint8Array(await z.slice(0, 2).arrayBuffer()); if (h[0] !== 0x50 || h[1] !== 0x4b) throw new Error('assinatura inválida'); return z.size + ' bytes'; });
+  if (ico) await tenta('ICO multi-tamanho', async () => { const b = await ico.gerarIco([16, 32, 48], t => { const c = document.createElement('canvas'); c.width = c.height = t; return c; }); return (await ex.lerAssinatura(b)) === 'ico' ? 'assinatura ico' : (() => { throw new Error('assinatura inválida'); })(); });
+}
+if (pr) await tenta('Presets de redes sociais', async () => pr.PRESETS.length + ' redes');
+
+const rec = (n, ok, nota = '') => linha('rec', ok ? 'ok' : 'info', `${n}: ${ok ? 'sim' : 'não'}${nota ? ' (' + nota + ')' : ''}`);
+rec('createImageBitmap (orientação EXIF)', 'createImageBitmap' in self);
+rec('ImageDecoder / WebCodecs (ler GIF e WebP animados)', 'ImageDecoder' in self, 'necessário para importar animações na próxima etapa');
+rec('OffscreenCanvas', 'OffscreenCanvas' in self);
+rec('Web Worker em módulo', (() => { try { new Worker(URL.createObjectURL(new Blob([''], { type: 'text/javascript' })), { type: 'module' }).terminate(); return true; } catch { return false; } })());
+rec('Canvas roundRect (cantos arredondados)', 'roundRect' in CanvasRenderingContext2D.prototype);
+rec('Área de transferência (copiar código)', !!navigator.clipboard);
+linha('rec', 'info', 'Navegador: ' + navigator.userAgent);
+
+document.getElementById('resumo').textContent = falhas ? `${falhas} problema(s) encontrado(s). Veja os itens com ✖ abaixo.` : 'Tudo certo: nenhum problema encontrado.';
+document.getElementById('resumo').className = falhas ? 'erro' : 'ok';
+document.getElementById('copiar').onclick = async () => { try { await navigator.clipboard.writeText(texto.join('\n')); document.getElementById('copiar').textContent = 'Copiado!'; } catch { document.getElementById('copiar').textContent = 'Não foi possível copiar'; } };
+</script>
+</body>
+</html>
