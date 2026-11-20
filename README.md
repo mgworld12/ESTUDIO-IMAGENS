@@ -11,4 +11,5 @@ Módulos ES não funcionam abrindo o arquivo com duplo clique. Na pasta do proje
 3. O site fica em `https://SEU-USUARIO.github.io/image-studio/`.
 
 ## Dependências
-Nenhuma de terceiros nesta entrega. O ZIP é gerado por código próprio (js/services/exportar.js).
+- **gifenc 1.0.3** (MIT), em `vendor/`: codifica o GIF animado. Detalhes em `vendor/README.md`.
+- O ZIP e o `.ico` são gerados por código próprio (`js/services/exportar.js`, `js/services/ico.js`); o WebP animado virá sem biblioteca.
