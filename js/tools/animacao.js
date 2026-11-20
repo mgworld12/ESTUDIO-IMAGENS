@@ -1,5 +1,6 @@
 import { abrirArquivo, metade } from '../core/imagem.js';
-import { lerAssinatura, baixar } from '../services/exportar.js';
+import { codificar, lerAssinatura, baixar, zip } from '../services/exportar.js';
+import { gerarStickerAnimado, LADO } from '../services/sticker-anim.js';
 import { codificarGif } from '../services/gif.js';
 import { montarWebpAnimado, validarWebpAnimado } from '../services/webp-anim.js';
 import { lerQuadros } from '../services/animados.js';
@@ -30,6 +31,12 @@ export function montarAnimacao(raiz) {
         <p class="aviso">O GIF só tem transparência total ou nenhuma, sem bordas suaves. As bordas semitransparentes são misturadas com a cor escolhida acima: use a cor do fundo onde a animação vai ser exibida. O tempo de cada quadro é guardado em centésimos de segundo. O WebP animado aceita bordas suaves e fica melhor com fundo transparente, mas sempre perde um pouco de qualidade.</p></details>
       <div class="acoes"><button type="button" class="primario" id="gif">Baixar GIF</button><button type="button" class="primario" id="webp">Baixar WebP animado</button><button type="button" id="cancel" hidden>Cancelar</button></div>
       <p class="aviso" id="prog"></p>
+      <fieldset><legend>Sticker animado para WhatsApp</legend>
+        <p class="aviso">Gera um WebP animado de 512 × 512 px, até 500 KB e 10 s, ajustando a qualidade sozinho. O WhatsApp termina a animação no primeiro quadro: deixe o primeiro quadro com a imagem completa. Use fundo transparente.</p>
+        <div class="acoes"><button type="button" class="primario" id="stk">Baixar sticker animado</button><button type="button" id="stkadd">Adicionar ao pacote</button></div>
+        <div class="pacote" id="pacoteA"></div>
+        <label>Nome <input type="text" id="pnomeA" value="Meu pacote animado" maxlength="30"></label><label>Autor <input type="text" id="pautorA" maxlength="30"></label>
+        <button type="button" id="stkzip" disabled>Baixar pacote (ZIP)</button><p class="aviso" id="pinfoA"></p></fieldset>
     </form></div>`;
   const $ = s => raiz.querySelector(s), cv = $('#cv'), cx = cv.getContext('2d'), arq = $('#arq');
   $('form').onsubmit = ev => ev.preventDefault(); $('#bArq').onclick = $('#mais').onclick = () => arq.click();
@@ -97,14 +104,15 @@ export function montarAnimacao(raiz) {
 
   $('#qw').oninput = ev => { e.qw = +ev.target.value; $('#oqw').textContent = Math.round(e.qw * 100) + '%'; };
 
+  const ocupar = x => { ['#gif', '#webp', '#stk', '#stkadd'].forEach(s => { $(s).disabled = x; }); $('#cancel').hidden = !x; };
   async function exportar(nome, gerar) {
     if (!frames.length) return;
-    cancelar = false; $('#gif').disabled = $('#webp').disabled = true; $('#cancel').hidden = false;
+    cancelar = false; ocupar(true);
     try {
       const blob = await gerar();
       baixar(blob, nome); $('#prog').textContent = `Pronto: ${Math.max(1, Math.round(blob.size / 1024))} KB, ${frames.length} quadros, ${e.tam} × ${e.tam} px.`; avisar('Arquivo baixado.', 'ok');
     } catch (err) { $('#prog').textContent = ''; avisar(err.message, err.message === 'Cancelado.' ? 'ok' : 'erro'); }
-    finally { $('#gif').disabled = $('#webp').disabled = false; $('#cancel').hidden = true; }
+    finally { ocupar(false); }
   }
   const progresso = (i, n) => { $('#prog').textContent = `Gerando quadro ${i} de ${n}…`; };
 
@@ -127,4 +135,36 @@ export function montarAnimacao(raiz) {
     if ((await validarWebpAnimado(blob)).quadros !== frames.length) throw new Error('O WebP animado gerado não ficou com todos os quadros.');
     return blob;
   });
+
+  // ---- Sticker animado para WhatsApp (limites oficiais: 512x512, até 500 KB, até 10 s) ----
+  let packA = [];
+  const webpQuadro = async (c, q) => { const b = await new Promise(r => c.toBlob(r, 'image/webp', q)); if (!b || await lerAssinatura(b) !== 'webp') throw new Error('Este navegador não gera WebP. Use Chrome, Edge ou Firefox.'); return b; };
+  async function gerarSticker() {
+    if (frames.length < 2) throw new Error('Um sticker animado precisa de pelo menos 2 quadros.');
+    const r = await gerarStickerAnimado(frames.map(f => ({ c: render(f, LADO), ms: f.ms })), { codificar: webpQuadro, aoProgresso: t => { $('#prog').textContent = t; }, cancelado: () => cancelar });
+    const v = await validarWebpAnimado(r.blob), dur = v.ms.reduce((a, b) => a + b, 0);
+    if (v.quadros !== r.quadros || v.ms.some(m => m < 8) || dur > 10000 || r.blob.size > 500 * 1024) throw new Error('O sticker gerado não passou na conferência dos limites do WhatsApp.');
+    $('#prog').textContent = `Sticker pronto: ${Math.round(r.blob.size / 1024)} KB (limite 500), ${r.quadros} quadros, ${(dur / 1000).toFixed(1)} s (limite 10), qualidade ${Math.round(r.qualidade * 100)}%.`;
+    return { blob: r.blob, c0: render(frames[0], LADO) };
+  }
+  const trabalho = async fn => { cancelar = false; ocupar(true); try { await fn(); } catch (err) { $('#prog').textContent = ''; avisar(err.message, err.message === 'Cancelado.' ? 'ok' : 'erro'); } finally { ocupar(false); } };
+  $('#stk').onclick = () => trabalho(async () => { baixar((await gerarSticker()).blob, 'sticker-animado.webp'); avisar('Sticker baixado.', 'ok'); });
+  function listaA() {
+    $('#pacoteA').replaceChildren(...packA.map((p, i) => Object.assign(document.createElement('img'), { src: p.url, alt: 'Sticker ' + (i + 1), title: 'Clique para remover', onclick: () => { packA.splice(i, 1); listaA(); } })));
+    $('#stkzip').disabled = packA.length < 3;
+    $('#pinfoA').textContent = packA.length < 3 ? `${packA.length} de 3 stickers (mínimo do WhatsApp). Clique em uma miniatura para remover.` : `${packA.length} stickers (máximo 30). Clique em uma miniatura para remover.`;
+  }
+  $('#stkadd').onclick = () => trabalho(async () => {
+    if (packA.length >= 30) throw new Error('O pacote já tem 30 stickers (máximo).');
+    const r = await gerarSticker(); packA.push({ ...r, url: URL.createObjectURL(r.blob) }); listaA(); avisar(`Sticker ${packA.length} adicionado ao pacote.`, 'ok');
+  });
+  $('#stkzip').onclick = () => trabalho(async () => {
+    let f = packA[0].c0; while (f.width > 192) f = metade(f);
+    const tray = Object.assign(document.createElement('canvas'), { width: 96, height: 96 }), x = tray.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(f, 0, 0, 96, 96);
+    const bandeja = await codificar(tray, 'png'), nm = $('#pnomeA').value.trim() || 'Meu pacote animado', au = $('#pautorA').value.trim();
+    const leia = `PACOTE DE STICKERS ANIMADOS: ${nm}${au ? '\nAutor: ' + au : ''}\nGerado no IMAGE STUDIO. ${packA.length} stickers.\n\nConteúdo\n- figurinhas/: WebP animado 512 x 512, até 500 KB e 10 s cada.\n- bandeja-96x96.png: ícone do pacote (96 x 96 px, ${Math.max(1, Math.round(bandeja.size / 1024))} KB; o limite é 50 KB).\n\nIMPORTANTE: baixar este ZIP não instala os stickers no WhatsApp.\nPara usá-los, passe os arquivos para o celular e importe-os com um aplicativo de criação/importação de figurinhas animadas. Esses aplicativos pedem de 1 a 3 emojis para cada sticker.\nRegras do WhatsApp: pacote de 3 a 30 stickers; não mistura animados com estáticos; o WhatsApp termina a animação no primeiro quadro.\n`;
+    baixar(await zip([...packA.map((p, i) => ({ nome: `figurinhas/${String(i + 1).padStart(2, '0')}.webp`, blob: p.blob })), { nome: 'bandeja-96x96.png', blob: bandeja }, { nome: 'LEIA-ME.txt', blob: new Blob([leia], { type: 'text/plain' }) }]), 'pacote-animado.zip');
+    avisar('Pacote baixado. Abra o LEIA-ME.txt.', 'ok');
+  });
+  listaA();
 }
