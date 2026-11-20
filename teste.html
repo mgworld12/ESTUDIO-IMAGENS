@@ -16,7 +16,7 @@ button{font:inherit;padding:.5rem 1rem;margin-top:1rem}</style>
 <button id="copiar" type="button">Copiar resultado</button>
 <script type="module">
 const ARQUIVOS = ['index.html','css/base.css','js/app.js','js/core/imagem.js','js/core/quadro.js','js/services/exportar.js','js/services/ico.js',
-  'js/tools/perfil.js','js/tools/favicon.js','js/tools/icone-pasta.js','js/tools/sticker.js','js/tools/animacao.js','js/services/gif.js','js/services/webp-anim.js','js/services/animados.js','vendor/gifenc.esm.js','js/utils/avisar.js','js/data/presets-redes.js'];
+  'js/tools/perfil.js','js/tools/favicon.js','js/tools/icone-pasta.js','js/tools/sticker.js','js/tools/animacao.js','js/services/gif.js','js/services/webp-anim.js','js/services/animados.js','js/services/sticker-anim.js','vendor/gifenc.esm.js','js/utils/avisar.js','js/data/presets-redes.js'];
 let falhas = 0, texto = [];
 const linha = (ul, cls, msg) => { const li = Object.assign(document.createElement('li'), { className: cls, textContent: msg }); document.getElementById(ul).append(li); texto.push((cls === 'ok' ? 'OK   ' : cls === 'erro' ? 'ERRO ' : 'INFO ') + msg); if (cls === 'erro') falhas++; };
 const base = location.href.replace(/[^/]*$/, '');
@@ -45,6 +45,13 @@ if (ex) {
     const b = await w.montarWebpAnimado(partes, 16, 16, 0), v = await w.validarWebpAnimado(b); let lido = '';
     if (typeof ImageDecoder !== 'undefined') { const d = new ImageDecoder({ data: await b.arrayBuffer(), type: 'image/webp' }); await d.tracks.ready; await d.completed; lido = `, o navegador leu ${d.tracks.selectedTrack.frameCount} quadros`; d.close(); }
     return `${b.size} bytes, ${v.quadros} quadros${lido}`;
+  });
+  await tenta('Sticker animado (limites do WhatsApp)', async () => {
+    const s = await import('./js/services/sticker-anim.js'), w = await import('./js/services/webp-anim.js'), qs = [];
+    for (let i = 0; i < 4; i++) { const c = document.createElement('canvas'); c.width = c.height = 512; const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 512, 512); g.addColorStop(0, `hsl(${i * 80},80%,55%)`); g.addColorStop(1, `hsl(${i * 80 + 120},80%,35%)`); x.fillStyle = g; x.beginPath(); x.arc(256, 256, 220, 0, 7); x.fill(); qs.push({ c, ms: 150 }); }
+    const r = await s.gerarStickerAnimado(qs, { codificar: (c, q) => ex.codificar(c, 'webp', q) }), v = await w.validarWebpAnimado(r.blob);
+    if (r.blob.size > s.LIM_BYTES || v.quadros !== 4) throw new Error('fora dos limites');
+    return `${Math.round(r.blob.size / 1024)} KB (limite 500), ${v.quadros} quadros, qualidade ${Math.round(r.qualidade * 100)}%`;
   });
   if (ico) await tenta('ICO multi-tamanho', async () => { const b = await ico.gerarIco([16, 32, 48], t => { const c = document.createElement('canvas'); c.width = c.height = t; return c; }); return (await ex.lerAssinatura(b)) === 'ico' ? 'assinatura ico' : (() => { throw new Error('assinatura inválida'); })(); });
 }
