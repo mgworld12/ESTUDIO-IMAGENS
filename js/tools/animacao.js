@@ -1,15 +1,17 @@
 import { abrirArquivo, metade } from '../core/imagem.js';
 import { lerAssinatura, baixar } from '../services/exportar.js';
 import { codificarGif } from '../services/gif.js';
+import { montarWebpAnimado, validarWebpAnimado } from '../services/webp-anim.js';
+import { lerQuadros } from '../services/animados.js';
 import { avisar } from '../utils/avisar.js';
 
 const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 
 export function montarAnimacao(raiz) {
-  const e = { tam: 256, ajuste: 'inteira', transp: true, cor: '#ffffff', ms: 200, rep: 'inf', n: 3, cores: 256, matte: '#ffffff' };
+  const e = { tam: 256, ajuste: 'inteira', transp: true, cor: '#ffffff', ms: 200, rep: 'inf', n: 3, cores: 256, matte: '#ffffff', qw: 0.9 };
   let frames = [], cache = [], idx = 0, timer = 0, tocando = true, cancelar = false;
   raiz.innerHTML = `
-  <div class="zona" id="zona"><p><strong>Arraste várias imagens para cá</strong>, cole com Ctrl+V ou escolha os arquivos. Cada imagem vira um quadro.</p>
+  <div class="zona" id="zona"><p><strong>Arraste várias imagens para cá</strong>, cole com Ctrl+V ou escolha os arquivos. Cada imagem vira um quadro; GIF e WebP animados são separados em quadros.</p>
     <div class="acoes"><button type="button" class="primario" id="bArq">Escolher imagens</button></div><input id="arq" type="file" accept="image/*" multiple hidden></div>
   <div class="editor" id="editor" hidden>
     <div class="previa"><canvas id="cv" width="256" height="256" aria-label="Prévia da animação"></canvas>
@@ -23,9 +25,10 @@ export function montarAnimacao(raiz) {
       <label>Repetição <select id="rep"><option value="inf">Infinita</option><option value="1">Tocar 1 vez</option><option value="n">Tocar N vezes</option></select><input type="number" id="n" min="2" max="100" value="3" hidden></label>
       <details><summary>Avançado: cores e bordas</summary>
         <label>Cores <input type="range" id="cores" min="2" max="256" value="256"><output id="ocores">256</output></label>
-        <label>Cor para suavizar as bordas <input type="color" id="matte" value="#ffffff"></label>
-        <p class="aviso">O GIF só tem transparência total ou nenhuma, sem bordas suaves. As bordas semitransparentes são misturadas com a cor escolhida acima: use a cor do fundo onde a animação vai ser exibida. O tempo de cada quadro é guardado em centésimos de segundo.</p></details>
-      <div class="acoes"><button type="button" class="primario" id="gif">Baixar GIF</button><button type="button" id="cancel" hidden>Cancelar</button></div>
+        <label>Cor para suavizar as bordas (GIF) <input type="color" id="matte" value="#ffffff"></label>
+        <label>Qualidade do WebP <input type="range" id="qw" min="0.5" max="1" step="0.01" value="0.9"><output id="oqw">90%</output></label>
+        <p class="aviso">O GIF só tem transparência total ou nenhuma, sem bordas suaves. As bordas semitransparentes são misturadas com a cor escolhida acima: use a cor do fundo onde a animação vai ser exibida. O tempo de cada quadro é guardado em centésimos de segundo. O WebP animado aceita bordas suaves e fica melhor com fundo transparente, mas sempre perde um pouco de qualidade.</p></details>
+      <div class="acoes"><button type="button" class="primario" id="gif">Baixar GIF</button><button type="button" class="primario" id="webp">Baixar WebP animado</button><button type="button" id="cancel" hidden>Cancelar</button></div>
       <p class="aviso" id="prog"></p>
     </form></div>`;
   const $ = s => raiz.querySelector(s), cv = $('#cv'), cx = cv.getContext('2d'), arq = $('#arq');
@@ -65,7 +68,13 @@ export function montarAnimacao(raiz) {
   $('#quadros').onchange = ev => { if (ev.target.classList.contains('qms')) { frames[+ev.target.dataset.i].ms = Math.max(20, +ev.target.value || e.ms); resumo(); } };
 
   const adicionar = async files => {
-    for (const f of files) { try { frames.push({ img: await abrirArquivo(f), ms: e.ms }); } catch (err) { avisar(err.message, 'erro'); } }
+    for (const f of files) {
+      try {
+        const q = await lerQuadros(f);
+        if (q) frames.push(...q);
+        else { if (f.type === 'image/gif' && typeof ImageDecoder === 'undefined') avisar('Este navegador não separa os quadros do GIF: entra só o primeiro.', 'erro'); frames.push({ img: await abrirArquivo(f), ms: e.ms }); }
+      } catch (err) { avisar(err.message, 'erro'); }
+    }
     refazer();
   };
   arq.onchange = () => { adicionar([...arq.files]); arq.value = ''; };
@@ -86,16 +95,36 @@ export function montarAnimacao(raiz) {
   $('#play').onclick = () => { tocando = !tocando; $('#play').textContent = tocando ? 'Pausar' : 'Tocar'; tocar(); };
   $('#cancel').onclick = () => { cancelar = true; };
 
-  $('#gif').onclick = async () => {
+  $('#qw').oninput = ev => { e.qw = +ev.target.value; $('#oqw').textContent = Math.round(e.qw * 100) + '%'; };
+
+  async function exportar(nome, gerar) {
     if (!frames.length) return;
-    cancelar = false; $('#gif').disabled = true; $('#cancel').hidden = false;
+    cancelar = false; $('#gif').disabled = $('#webp').disabled = true; $('#cancel').hidden = false;
     try {
-      const S = e.tam, dados = frames.map(f => ({ data: render(f, S).getContext('2d').getImageData(0, 0, S, S).data, ms: f.ms }));
-      const loops = e.rep === 'inf' ? 0 : e.rep === '1' ? -1 : e.n - 1;
-      const blob = await codificarGif(dados, S, S, { cores: e.cores, loops, transp: e.transp, matte: hex(e.matte), aoProgresso: (i, n) => { $('#prog').textContent = `Gerando quadro ${i} de ${n}…`; }, cancelado: () => cancelar });
-      if (await lerAssinatura(blob) !== 'gif') throw new Error('Não foi possível gerar um GIF válido.');
-      baixar(blob, 'animacao.gif'); $('#prog').textContent = `GIF pronto: ${Math.max(1, Math.round(blob.size / 1024))} KB, ${frames.length} quadros, ${S} × ${S} px.`; avisar('GIF baixado.', 'ok');
+      const blob = await gerar();
+      baixar(blob, nome); $('#prog').textContent = `Pronto: ${Math.max(1, Math.round(blob.size / 1024))} KB, ${frames.length} quadros, ${e.tam} × ${e.tam} px.`; avisar('Arquivo baixado.', 'ok');
     } catch (err) { $('#prog').textContent = ''; avisar(err.message, err.message === 'Cancelado.' ? 'ok' : 'erro'); }
-    finally { $('#gif').disabled = false; $('#cancel').hidden = true; }
-  };
+    finally { $('#gif').disabled = $('#webp').disabled = false; $('#cancel').hidden = true; }
+  }
+  const progresso = (i, n) => { $('#prog').textContent = `Gerando quadro ${i} de ${n}…`; };
+
+  $('#gif').onclick = () => exportar('animacao.gif', async () => {
+    const S = e.tam, dados = frames.map(f => ({ data: render(f, S).getContext('2d').getImageData(0, 0, S, S).data, ms: f.ms }));
+    const blob = await codificarGif(dados, S, S, { cores: e.cores, loops: e.rep === 'inf' ? 0 : e.rep === '1' ? -1 : e.n - 1, transp: e.transp, matte: hex(e.matte), aoProgresso: progresso, cancelado: () => cancelar });
+    if (await lerAssinatura(blob) !== 'gif') throw new Error('Não foi possível gerar um GIF válido.');
+    return blob;
+  });
+
+  $('#webp').onclick = () => exportar('animacao.webp', async () => {
+    const S = e.tam, partes = [];
+    for (let i = 0; i < frames.length; i++) {
+      if (cancelar) throw new Error('Cancelado.');
+      const b = await new Promise(r => render(frames[i], S).toBlob(r, 'image/webp', e.qw));
+      if (!b || await lerAssinatura(b) !== 'webp') throw new Error('Este navegador não gera WebP. Use Chrome, Edge ou Firefox.');
+      partes.push({ blob: b, ms: frames[i].ms }); progresso(i + 1, frames.length); await new Promise(r => setTimeout(r));
+    }
+    const blob = await montarWebpAnimado(partes, S, S, e.rep === 'inf' ? 0 : e.rep === '1' ? 1 : e.n);
+    if ((await validarWebpAnimado(blob)).quadros !== frames.length) throw new Error('O WebP animado gerado não ficou com todos os quadros.');
+    return blob;
+  });
 }
