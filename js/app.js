@@ -2,13 +2,14 @@ import { montarPerfil } from './tools/perfil.js';
 import { montarFavicon } from './tools/favicon.js';
 import { montarPasta } from './tools/icone-pasta.js';
 import { montarSticker } from './tools/sticker.js';
+import { montarAnimacao } from './tools/animacao.js';
 
 const FERRAMENTAS = [
   { id: 'perfil', nome: 'Foto de perfil', desc: 'Redonda, quadrada ou com cantos arredondados, em vários tamanhos.', montar: montarPerfil },
   { id: 'sticker', nome: 'Sticker', desc: 'Figurinhas estáticas para WhatsApp. As animadas chegam em seguida.', montar: montarSticker },
   { id: 'pasta', nome: 'Ícone de pasta', desc: 'Ícone .ico para trocar o visual de pastas do Windows.', montar: montarPasta },
   { id: 'favicon', nome: 'Favicon', desc: 'Todos os ícones que o seu site precisa.', montar: montarFavicon },
-  { id: 'gif', nome: 'GIF e animação', desc: 'Crie GIFs a partir de várias imagens.' },
+  { id: 'gif', nome: 'GIF e animação', desc: 'Crie GIFs a partir de várias imagens.', montar: montarAnimacao },
 ];
 const app = document.getElementById('app'), html = document.documentElement;
 
