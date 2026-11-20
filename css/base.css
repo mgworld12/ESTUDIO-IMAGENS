@@ -44,3 +44,6 @@ input[type=text]{padding:.4rem;border:1px solid var(--linha);border-radius:6px;b
 textarea{width:100%;font:.85rem ui-monospace,Consolas,monospace;background:var(--painel);color:inherit;border:1px solid var(--linha);border-radius:6px;padding:.5rem}
 .pacote{display:flex;gap:.5rem;flex-wrap:wrap}
 .pacote img{width:64px;height:64px;border:1px solid var(--linha);border-radius:8px;cursor:pointer;background:repeating-conic-gradient(var(--xa) 0 25%,var(--xb) 0 50%) 0 0/10px 10px}
+.quadros{display:flex;gap:.6rem;flex-wrap:wrap}.q{display:grid;gap:.25rem;width:132px;padding:.4rem;border:1px solid var(--linha);border-radius:8px;background:var(--painel)}
+.q canvas{width:64px;height:64px;justify-self:center;background:repeating-conic-gradient(var(--xa) 0 25%,var(--xb) 0 50%) 0 0/10px 10px}
+.bq{display:flex;gap:2px;justify-content:center}.bq button{padding:.15rem .4rem;font-size:.85rem}.q .qms{width:100%}
