@@ -16,7 +16,7 @@ button{font:inherit;padding:.5rem 1rem;margin-top:1rem}</style>
 <button id="copiar" type="button">Copiar resultado</button>
 <script type="module">
 const ARQUIVOS = ['index.html','css/base.css','js/app.js','js/core/imagem.js','js/core/quadro.js','js/services/exportar.js','js/services/ico.js',
-  'js/tools/perfil.js','js/tools/favicon.js','js/tools/icone-pasta.js','js/tools/sticker.js','js/tools/animacao.js','js/services/gif.js','js/services/webp-anim.js','js/services/animados.js','js/services/sticker-anim.js','vendor/gifenc.esm.js','js/utils/avisar.js','js/data/presets-redes.js'];
+  'js/tools/perfil.js','js/tools/favicon.js','js/tools/icone-pasta.js','js/tools/sticker.js','js/tools/animacao.js','js/tools/conversor.js','js/services/gif.js','js/services/webp-anim.js','js/services/animados.js','js/services/sticker-anim.js','vendor/gifenc.esm.js','js/utils/avisar.js','js/data/presets-redes.js'];
 let falhas = 0, texto = [];
 const linha = (ul, cls, msg) => { const li = Object.assign(document.createElement('li'), { className: cls, textContent: msg }); document.getElementById(ul).append(li); texto.push((cls === 'ok' ? 'OK   ' : cls === 'erro' ? 'ERRO ' : 'INFO ') + msg); if (cls === 'erro') falhas++; };
 const base = location.href.replace(/[^/]*$/, '');
@@ -31,7 +31,7 @@ const tenta = async (nome, fn) => { try { const r = await fn(); linha('fun', 'ok
 let ex, ico, pr;
 await tenta('Módulos carregam (exportar, ico, avisar, imagem, quadro, perfil, favicon, ícone de pasta, sticker)', async () => {
   ex = await import('./js/services/exportar.js'); ico = await import('./js/services/ico.js');
-  for (const m of ['utils/avisar', 'core/imagem', 'core/quadro', 'tools/perfil', 'tools/favicon', 'tools/icone-pasta', 'tools/sticker', 'tools/animacao']) await import(`./js/${m}.js`);
+  for (const m of ['utils/avisar', 'core/imagem', 'core/quadro', 'tools/perfil', 'tools/favicon', 'tools/icone-pasta', 'tools/sticker', 'tools/animacao', 'tools/conversor']) await import(`./js/${m}.js`);
   pr = await import('./js/data/presets-redes.js');
 });
 const tela = () => { const c = document.createElement('canvas'); c.width = c.height = 16; const x = c.getContext('2d'); x.fillStyle = '#2457f5'; x.fillRect(0, 0, 16, 16); return c; };
