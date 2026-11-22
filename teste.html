@@ -13,10 +13,10 @@ button{font:inherit;padding:.5rem 1rem;margin-top:1rem}</style>
 <h2>1. Arquivos publicados</h2><ul id="arq"></ul>
 <h2>2. Funcionamento</h2><ul id="fun"></ul>
 <h2>3. Recursos deste navegador</h2><ul id="rec"></ul>
-<button id="copiar" type="button">Copiar resultado</button>
+<button id="copiar" type="button">Copiar resultado</button> <button id="ia" type="button">Testar a IA de remover fundo (baixa 19 MB)</button>
 <script type="module">
 const ARQUIVOS = ['index.html','css/base.css','js/app.js','js/core/imagem.js','js/core/quadro.js','js/services/exportar.js','js/services/ico.js',
-  'js/tools/perfil.js','js/tools/favicon.js','js/tools/icone-pasta.js','js/tools/sticker.js','js/tools/animacao.js','js/tools/conversor.js','js/services/gif.js','js/services/webp-anim.js','js/services/animados.js','js/services/sticker-anim.js','vendor/gifenc.esm.js','js/utils/avisar.js','js/data/presets-redes.js'];
+  'js/tools/perfil.js','js/tools/favicon.js','js/tools/icone-pasta.js','js/tools/sticker.js','js/tools/animacao.js','js/tools/conversor.js','js/tools/fundo.js','js/services/mascara.js','js/services/fundo.js','js/services/gif.js','js/services/webp-anim.js','js/services/animados.js','js/services/sticker-anim.js','vendor/gifenc.esm.js','js/utils/avisar.js','js/data/presets-redes.js'];
 let falhas = 0, texto = [];
 const linha = (ul, cls, msg) => { const li = Object.assign(document.createElement('li'), { className: cls, textContent: msg }); document.getElementById(ul).append(li); texto.push((cls === 'ok' ? 'OK   ' : cls === 'erro' ? 'ERRO ' : 'INFO ') + msg); if (cls === 'erro') falhas++; };
 const base = location.href.replace(/[^/]*$/, '');
@@ -27,11 +27,14 @@ for (const a of ARQUIVOS) {
   } catch (e) { linha('arq', 'erro', `${a}: ${e.message}`); }
 }
 
+for (const a of ['vendor/ort/ort.min.mjs', 'vendor/ort/ort-wasm-simd-threaded.mjs', 'vendor/ort/ort-wasm-simd-threaded.wasm', 'vendor/modelos/u2netp.onnx']) {
+  try { const r = await fetch(base + a, { method: 'HEAD', cache: 'no-store' }), n = +r.headers.get('content-length') || 0; r.ok ? linha('arq', 'ok', `${a} (${(n / 1048576).toFixed(1)} MB)`) : linha('arq', 'erro', `${a}: não encontrado (HTTP ${r.status})`); } catch (e) { linha('arq', 'erro', `${a}: ${e.message}`); }
+}
 const tenta = async (nome, fn) => { try { const r = await fn(); linha('fun', 'ok', nome + (r ? ' — ' + r : '')); } catch (e) { linha('fun', 'erro', `${nome}: ${e.message}`); } };
 let ex, ico, pr;
 await tenta('Módulos carregam (exportar, ico, avisar, imagem, quadro, perfil, favicon, ícone de pasta, sticker)', async () => {
   ex = await import('./js/services/exportar.js'); ico = await import('./js/services/ico.js');
-  for (const m of ['utils/avisar', 'core/imagem', 'core/quadro', 'tools/perfil', 'tools/favicon', 'tools/icone-pasta', 'tools/sticker', 'tools/animacao', 'tools/conversor']) await import(`./js/${m}.js`);
+  for (const m of ['utils/avisar', 'core/imagem', 'core/quadro', 'tools/perfil', 'tools/favicon', 'tools/icone-pasta', 'tools/sticker', 'tools/animacao', 'tools/conversor', 'tools/fundo', 'services/mascara', 'services/fundo']) await import(`./js/${m}.js`);
   pr = await import('./js/data/presets-redes.js');
 });
 const tela = () => { const c = document.createElement('canvas'); c.width = c.height = 16; const x = c.getContext('2d'); x.fillStyle = '#2457f5'; x.fillRect(0, 0, 16, 16); return c; };
@@ -68,6 +71,17 @@ linha('rec', 'info', 'Navegador: ' + navigator.userAgent);
 
 document.getElementById('resumo').textContent = falhas ? `${falhas} problema(s) encontrado(s). Veja os itens com ✖ abaixo.` : 'Tudo certo: nenhum problema encontrado.';
 document.getElementById('resumo').className = falhas ? 'erro' : 'ok';
+document.getElementById('ia').onclick = async () => {
+  const b = document.getElementById('ia'), t0 = performance.now(); b.disabled = true; b.textContent = 'Testando…';
+  try {
+    const f = await import('./js/services/fundo.js'), c = document.createElement('canvas'); c.width = c.height = 320; const x = c.getContext('2d');
+    x.fillStyle = '#89a'; x.fillRect(0, 0, 320, 320); x.fillStyle = '#d33'; x.beginPath(); x.ellipse(160, 175, 90, 110, 0, 0, 7); x.fill(); x.fillStyle = '#fc9'; x.beginPath(); x.arc(160, 85, 45, 0, 7); x.fill();
+    const m = await f.segmentar(c, (r, l, t) => { b.textContent = `Baixando ${r}… ${(l / 1048576).toFixed(0)} de ${(t / 1048576).toFixed(0)} MB`; });
+    const cob = m.reduce((s, v) => s + (v > 0.5 ? 1 : 0), 0) / m.length;
+    linha('fun', cob > 0.03 && cob < 0.97 ? 'ok' : 'erro', `IA de remover fundo: a máscara cobre ${(cob * 100).toFixed(0)}% da imagem de teste, em ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+  } catch (e) { linha('fun', 'erro', 'IA de remover fundo: ' + e.message); }
+  b.textContent = 'Testar a IA de novo'; b.disabled = false;
+};
 document.getElementById('copiar').onclick = async () => { try { await navigator.clipboard.writeText(texto.join('\n')); document.getElementById('copiar').textContent = 'Copiado!'; } catch { document.getElementById('copiar').textContent = 'Não foi possível copiar'; } };
 </script>
 </body>
