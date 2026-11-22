@@ -4,6 +4,7 @@ import { montarPasta } from './tools/icone-pasta.js';
 import { montarSticker } from './tools/sticker.js';
 import { montarAnimacao } from './tools/animacao.js';
 import { montarConversor } from './tools/conversor.js';
+import { montarFundo } from './tools/fundo.js';
 
 const FERRAMENTAS = [
   { id: 'perfil', nome: 'Foto de perfil', desc: 'Redonda, quadrada ou com cantos arredondados, em vários tamanhos.', montar: montarPerfil },
@@ -11,6 +12,7 @@ const FERRAMENTAS = [
   { id: 'pasta', nome: 'Ícone de pasta', desc: 'Ícone .ico para trocar o visual de pastas do Windows.', montar: montarPasta },
   { id: 'favicon', nome: 'Favicon', desc: 'Todos os ícones que o seu site precisa.', montar: montarFavicon },
   { id: 'gif', nome: 'GIF e animação', desc: 'GIF, WebP animado e stickers animados a partir de várias imagens.', montar: montarAnimacao },
+  { id: 'fundo', nome: 'Remover fundo', desc: '', montar: montarFundo, secundaria: true },
   { id: 'conversor', nome: 'Converter e otimizar', desc: '', montar: montarConversor, secundaria: true },
 ];
 const app = document.getElementById('app'), html = document.documentElement;
@@ -31,7 +33,7 @@ function render() {
       <div class="cartoes">${FERRAMENTAS.filter(x => !x.secundaria).map(x => x.montar
         ? `<a class="cartao" href="#${x.id}"><strong>${x.nome}</strong><span class="d">${x.desc}</span></a>`
         : `<div class="cartao off" aria-disabled="true"><span class="etiq">em breve</span><strong>${x.nome}</strong><span class="d">${x.desc}</span></div>`).join('')}</div>
-      <p class="sub" style="margin-top:1.4rem"><a href="#conversor">Converter e otimizar imagens em lote</a></p>`;
+      <p class="sub" style="margin-top:1.4rem">${FERRAMENTAS.filter(x => x.secundaria).map(x => `<a href="#${x.id}">${x.nome}</a>`).join(' · ')}</p>`;
     return;
   }
   const cab = document.createElement('div'), corpo = document.createElement('div');
