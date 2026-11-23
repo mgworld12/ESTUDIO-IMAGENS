@@ -27,7 +27,7 @@ for (const a of ARQUIVOS) {
   } catch (e) { linha('arq', 'erro', `${a}: ${e.message}`); }
 }
 
-for (const a of ['vendor/ort/ort.min.mjs', 'vendor/ort/ort-wasm-simd-threaded.mjs', 'vendor/ort/ort-wasm-simd-threaded.wasm', 'vendor/modelos/u2netp.onnx']) {
+for (const a of ['vendor/ort/ort.wasm.min.mjs', 'vendor/ort/ort-wasm-simd-threaded.mjs', 'vendor/ort/ort-wasm-simd-threaded.wasm', 'vendor/modelos/u2netp.onnx']) {
   try { const r = await fetch(base + a, { method: 'HEAD', cache: 'no-store' }), n = +r.headers.get('content-length') || 0; r.ok ? linha('arq', 'ok', `${a} (${(n / 1048576).toFixed(1)} MB)`) : linha('arq', 'erro', `${a}: não encontrado (HTTP ${r.status})`); } catch (e) { linha('arq', 'erro', `${a}: ${e.message}`); }
 }
 const tenta = async (nome, fn) => { try { const r = await fn(); linha('fun', 'ok', nome + (r ? ' — ' + r : '')); } catch (e) { linha('fun', 'erro', `${nome}: ${e.message}`); } };
