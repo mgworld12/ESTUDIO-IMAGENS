@@ -21,7 +21,7 @@ async function obter(url, rotulo, esperado, aoProgresso) {
 
 export async function carregar(aoProgresso) {
   if (sessao) return sessao;
-  ort = await import(ORT_URL + 'ort.min.mjs');
+  ort = await import(ORT_URL + 'ort.wasm.min.mjs');   // versão só WebAssembly (a ort.min.mjs pede os arquivos .jsep, de WebGPU)
   ort.env.wasm.numThreads = 1; ort.env.wasm.wasmPaths = ORT_URL;
   ort.env.wasm.wasmBinary = new Uint8Array(await obter(ORT_URL + 'ort-wasm-simd-threaded.wasm', 'o motor de IA', WASM_BYTES, aoProgresso));
   const modelo = await obter(MODELO_URL, 'o modelo de IA', MODELO_BYTES, aoProgresso);
