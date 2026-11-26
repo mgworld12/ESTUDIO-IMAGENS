@@ -1,6 +1,7 @@
 import { ligarEntrada, metade } from '../core/imagem.js';
 import { codificar, lerAssinatura, zip, baixar } from '../services/exportar.js';
 import { avisar } from '../utils/avisar.js';
+import { recortarFundo } from '../core/recorte.js';
 
 // Limites oficiais (repositório WhatsApp/stickers): 512x512, estática até 100 KB, pacote de 3 a 30; bandeja 96x96 até 50 KB.
 const T = 512, LIM = 100 * 1024, MIN = 3, MAX = 30;
@@ -55,7 +56,7 @@ export function montarSticker(raiz) {
         <input type="color" id="tcor" value="#ffffff" aria-label="Cor do texto">
         <select id="pos" aria-label="Posição" style="width:auto"><option value="0">Em cima</option><option value="1">No meio</option><option value="2" selected>Embaixo</option></select>
         <label>Tamanho <input type="range" id="fsz" min="24" max="160" value="80"></label></fieldset>
-      <div class="acoes"><button type="button" class="primario" id="add">Adicionar ao pacote</button><button type="button" id="um">Baixar só esta</button><button type="button" id="trocar">Trocar imagem</button></div>
+      <div class="acoes"><button type="button" class="primario" id="add">Adicionar ao pacote</button><button type="button" id="um">Baixar só esta</button><button type="button" id="trocar">Trocar imagem</button><button type="button" id="semfundo">Remover fundo</button></div>
       <p class="aviso">Cada figurinha sai em WebP 512 × 512 com fundo transparente e até 100 KB (a qualidade é ajustada sozinha).</p>
       <fieldset><legend>Pacote</legend><div class="pacote" id="pacote"></div>
         <label>Nome <input type="text" id="pnome" value="Meu pacote" maxlength="30"></label><label>Autor <input type="text" id="pautor" maxlength="30"></label>
@@ -63,6 +64,11 @@ export function montarSticker(raiz) {
     </form></div>`;
   const $ = s => raiz.querySelector(s), cv = $('#cv'), cx = cv.getContext('2d'), arq = $('#arq');
   $('form').onsubmit = ev => ev.preventDefault(); $('#bArq').onclick = $('#trocar').onclick = () => arq.click();
+  $('#semfundo').onclick = async () => {
+    const r = await recortarFundo(e.img); if (!r) return;
+    e.img = r; cadeia = [r]; e.ox = e.oy = 0; e.forma = 'livre'; e.ajuste = 'inteira';   // o recorte já tem a forma do desenho
+    raiz.querySelector('[name=forma][value=livre]').checked = true; raiz.querySelector('[name=ajuste][value=inteira]').checked = true; redesenhar();
+  };
 
   const nivel = k => { while (cadeia.length <= k) cadeia.push(metade(cadeia.at(-1))); return cadeia[k]; };
   const rel = () => (e.ajuste === 'inteira' ? Math.min : Math.max)(1 / e.img.width, 1 / e.img.height) * e.zoom;

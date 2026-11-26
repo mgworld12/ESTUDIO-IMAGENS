@@ -1,6 +1,7 @@
 import { ligarEntrada, metade } from '../core/imagem.js';
 import { codificar, zip, baixar } from '../services/exportar.js';
 import { avisar } from '../utils/avisar.js';
+import { recortarFundo } from '../core/recorte.js';
 import { PRESETS } from '../data/presets-redes.js';
 
 const TAMANHOS = [128, 256, 400, 512, 1080];
@@ -41,7 +42,7 @@ export function montarPerfil(raiz) {
         <p class="aviso">PNG não perde qualidade. WebP e JPG sempre perdem um pouco. Redonda com transparência só existe em PNG e WebP. O DPI só calcula os pixels: o arquivo não guarda DPI.</p>
       </details>
       <p class="aviso" id="aviso"></p>
-      <div class="acoes"><button type="button" class="primario" id="baixar">Baixar</button><button type="button" id="trocar">Trocar imagem</button><button type="button" id="desf" disabled>Desfazer</button><button type="button" id="ref" disabled>Refazer</button></div>
+      <div class="acoes"><button type="button" class="primario" id="baixar">Baixar</button><button type="button" id="trocar">Trocar imagem</button><button type="button" id="semfundo">Remover fundo</button><button type="button" id="desf" disabled>Desfazer</button><button type="button" id="ref" disabled>Refazer</button></div>
     </form>
   </div>`;
   const $ = s => raiz.querySelector(s), cv = $('#cv'), cx = cv.getContext('2d');
@@ -49,6 +50,7 @@ export function montarPerfil(raiz) {
   $('#bArq').onclick = ev => { ev.preventDefault(); arq.click(); };
   $('#bCam').onclick = () => cam.click();
   $('#trocar').onclick = () => arq.click();
+  $('#semfundo').onclick = async () => { const r = await recortarFundo(e.img); if (r) { e.img = r; cadeia = [r]; redesenhar(); salvar(); } };
   raiz.querySelector('form').onsubmit = ev => ev.preventDefault();
 
   const nivel = k => { while (cadeia.length <= k) cadeia.push(metade(cadeia.at(-1))); return cadeia[k]; };

@@ -18,7 +18,7 @@ export function montarAnimacao(raiz) {
     <div class="previa"><canvas id="cv" width="256" height="256" aria-label="Prévia da animação"></canvas>
       <div class="acoes"><button type="button" id="play">Pausar</button><span class="dica" id="info"></span></div></div>
     <form class="ctrl">
-      <fieldset><legend>Quadros</legend><div class="quadros" id="quadros"></div><div class="acoes"><button type="button" id="mais">Adicionar imagens</button></div></fieldset>
+      <fieldset><legend>Quadros</legend><div class="quadros" id="quadros"></div><div class="acoes"><button type="button" id="mais">Adicionar imagens</button><button type="button" id="semfundo" title="Usa IA no navegador; leva alguns segundos por quadro">Remover fundo de todos os quadros</button></div></fieldset>
       <label>Tempo padrão <input type="number" id="ms" min="20" max="10000" step="10" value="200"> ms <button type="button" id="aplicar">Aplicar a todos</button></label>
       <label>Tamanho <select id="tam"><option>128</option><option selected>256</option><option>320</option><option>480</option></select> px</label>
       <fieldset><legend>Ajuste</legend><label><input type="radio" name="ajuste" value="inteira" checked> Imagem inteira</label><label><input type="radio" name="ajuste" value="preencher"> Preencher o quadro</label></fieldset>
@@ -104,7 +104,7 @@ export function montarAnimacao(raiz) {
 
   $('#qw').oninput = ev => { e.qw = +ev.target.value; $('#oqw').textContent = Math.round(e.qw * 100) + '%'; };
 
-  const ocupar = x => { ['#gif', '#webp', '#stk', '#stkadd'].forEach(s => { $(s).disabled = x; }); $('#cancel').hidden = !x; };
+  const ocupar = x => { ['#gif', '#webp', '#stk', '#stkadd', '#semfundo'].forEach(s => { $(s).disabled = x; }); $('#cancel').hidden = !x; };
   async function exportar(nome, gerar) {
     if (!frames.length) return;
     cancelar = false; ocupar(true);
@@ -167,4 +167,15 @@ export function montarAnimacao(raiz) {
     avisar('Pacote baixado. Abra o LEIA-ME.txt.', 'ok');
   });
   listaA();
+
+  // ---- Remover fundo de todos os quadros (IA local; baixa o motor na primeira vez) ----
+  $('#semfundo').onclick = () => trabalho(async () => {
+    const { recortarAuto } = await import('../services/fundo.js');
+    for (let i = 0; i < frames.length; i++) {
+      if (cancelar) throw new Error('Cancelado.');
+      $('#prog').textContent = `Removendo o fundo do quadro ${i + 1} de ${frames.length}…`;
+      frames[i].img = await recortarAuto(frames[i].img, (r, lido, total) => { $('#prog').textContent = `Baixando ${r}… ${(lido / 1048576).toFixed(1)} de ${(total / 1048576).toFixed(1)} MB`; });
+    }
+    e.transp = true; $('#transp').checked = true; refazer(); $('#prog').textContent = `Fundo removido de ${frames.length} quadros.`;
+  });
 }

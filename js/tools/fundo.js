@@ -1,10 +1,9 @@
-import { ligarEntrada, metade } from '../core/imagem.js';
+import { ligarEntrada } from '../core/imagem.js';
 import { codificar, baixar } from '../services/exportar.js';
-import { segmentar, ampliarMascara, DOWNLOAD_MB } from '../services/fundo.js';
+import { segmentar, ampliarMascara, reduzirTrabalho, aplicarMascara, DOWNLOAD_MB } from '../services/fundo.js';
 import { suavizar, ajustar, pincel } from '../services/mascara.js';
 import { avisar } from '../utils/avisar.js';
 
-const TRAB = 1280;   // a edição acontece com no máximo 1280 px; o arquivo final usa a imagem original inteira
 const tela = (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h });
 
 export function montarFundo(raiz, deps = {}) {
@@ -29,8 +28,9 @@ export function montarFundo(raiz, deps = {}) {
         <fieldset><legend>Fundo</legend><label><input type="radio" name="fundo" value="transp" checked> Transparente</label><label><input type="radio" name="fundo" value="cor"> Cor <input type="color" id="cor" value="#ffffff"></label></fieldset>
         <label><input type="checkbox" id="orig"> Mostrar a imagem original</label>
         <label>Salvar como <select id="fmt"><option value="png">PNG (com transparência)</option><option value="webp">WebP (com transparência)</option><option value="jpg">JPG (usa a cor de fundo)</option></select></label>
-        <button type="button" class="primario" id="baixar">Baixar</button></div>
-      <button type="button" id="trocar">Trocar imagem</button>
+        <button type="button" class="primario" id="baixar">Baixar</button>
+        <button type="button" class="primario" id="usar" hidden>Usar este recorte</button></div>
+      <button type="button" id="trocar">Trocar imagem</button><button type="button" id="cancelarM" hidden>Cancelar</button>
     </form></div>`;
   const $ = s => raiz.querySelector(s), cv = $('#cv'), cx = cv.getContext('2d'), arq = $('#arq');
   $('form').onsubmit = ev => ev.preventDefault(); $('#bArq').onclick = $('#trocar').onclick = () => arq.click();
@@ -74,24 +74,27 @@ export function montarFundo(raiz, deps = {}) {
   cv.onpointermove = ev => { if (pintando) pinta(ev); };
   cv.onpointerup = cv.onpointercancel = () => { pintando = false; };
 
+  async function compor(comFundo) {
+    const rec = aplicarMascara(orig, alfa(), mw, mh);
+    if (!comFundo) return rec;
+    const fim = tela(rec.width, rec.height), fx = fim.getContext('2d'); fx.fillStyle = e.cor; fx.fillRect(0, 0, fim.width, fim.height); fx.drawImage(rec, 0, 0);
+    return fim;
+  }
+  const erroTela = err => avisar(/memory|size|alloc/i.test(err.message) ? 'Imagem grande demais para este navegador.' : err.message, 'erro');
   $('#baixar').onclick = async () => {
-    try {
-      const W = orig.width, H = orig.height, a = alfa(), mc = tela(mw, mh), d = mc.getContext('2d').createImageData(mw, mh);
-      for (let i = 0; i < a.length; i++) d.data[4 * i + 3] = Math.round(a[i] * 255);
-      mc.getContext('2d').putImageData(d, 0, 0);
-      const rec = tela(W, H), rx = rec.getContext('2d'); rx.drawImage(orig, 0, 0); rx.globalCompositeOperation = 'destination-in'; rx.imageSmoothingQuality = 'high'; rx.drawImage(mc, 0, 0, W, H);
-      const fim = tela(W, H), fx = fim.getContext('2d');
-      if (e.fundo === 'cor' || e.fmt === 'jpg') { fx.fillStyle = e.cor; fx.fillRect(0, 0, W, H); }
-      fx.drawImage(rec, 0, 0);
-      baixar(await codificar(fim, e.fmt, 0.95), `sem-fundo.${e.fmt}`); avisar('Imagem baixada.', 'ok');
-    } catch (err) { avisar(/memory|size|alloc/i.test(err.message) ? 'Imagem grande demais para este navegador.' : err.message, 'erro'); }
+    try { baixar(await codificar(await compor(e.fundo === 'cor' || e.fmt === 'jpg'), e.fmt, 0.95), `sem-fundo.${e.fmt}`); avisar('Imagem baixada.', 'ok'); } catch (err) { erroTela(err); }
   };
+  $('#usar').onclick = async () => { try { deps.aoUsar(await compor(false)); } catch (err) { erroTela(err); } };   // modo janela: devolve o recorte transparente
+  $('#cancelarM').onclick = () => deps.aoCancelar?.();
 
-  ligarEntrada(raiz, [arq], bmp => {
-    orig = bmp; const s = Math.min(1, TRAB / Math.max(bmp.width, bmp.height)); mw = Math.max(1, Math.round(bmp.width * s)); mh = Math.max(1, Math.round(bmp.height * s));
-    let f = bmp, k = s; while (k < 0.5) { f = metade(f); k *= 2; }
-    trab = tela(mw, mh); const x = trab.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(f, 0, 0, mw, mh); dados = x.getImageData(0, 0, mw, mh).data;
+  function carregarImagem(bmp) {
+    orig = bmp; ({ c: trab, w: mw, h: mh } = reduzirTrabalho(bmp)); dados = trab.getContext('2d').getImageData(0, 0, mw, mh).data;
     cv.width = mw; cv.height = mh; mp = mIA = null; $('#ajustes').hidden = true; $('#ia').textContent = `Remover fundo (baixa ${DOWNLOAD_MB} MB na primeira vez)`;
     $('#zona').hidden = true; $('#editor').hidden = false; $('#dica').textContent = 'Primeiro clique em “Remover fundo”.'; desenhar();
-  });
+  }
+  if (deps.inicial) {   // aberto por outra ferramenta: sem escolha de arquivo, fundo nem download
+    $('#baixar').hidden = $('#trocar').hidden = true; $('#usar').hidden = $('#cancelarM').hidden = false;
+    $('#fmt').closest('label').hidden = true; raiz.querySelector('[name=fundo]').closest('fieldset').hidden = true;
+    carregarImagem(deps.inicial);
+  } else ligarEntrada(raiz, [arq], carregarImagem);
 }
