@@ -1,4 +1,5 @@
 import { metade } from '../core/imagem.js';
+import { suavizar } from './mascara.js';
 
 // Remoção de fundo no navegador: onnxruntime-web (MIT) + modelo U²-Net pequeno (Apache-2.0), ambos em vendor/.
 const VENDOR = new URL('../../vendor/', import.meta.url).href;
@@ -58,4 +59,30 @@ export function ampliarMascara(m, w, h) {
   const g = Object.assign(document.createElement('canvas'), { width: w, height: h }), gx = g.getContext('2d'); gx.imageSmoothingQuality = 'high'; gx.drawImage(pq, 0, 0, w, h);
   const o = gx.getImageData(0, 0, w, h).data, r = new Float32Array(w * h); for (let i = 0; i < r.length; i++) r[i] = o[4 * i] / 255;
   return r;
+}
+
+const tela = (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h });
+
+// Tamanho de trabalho: no máximo `max` px no maior lado (o arquivo final continua usando a imagem original inteira).
+export function reduzirTrabalho(img, max = 1280) {
+  const s = Math.min(1, max / Math.max(img.width, img.height)), w = Math.max(1, Math.round(img.width * s)), h = Math.max(1, Math.round(img.height * s));
+  let f = img, k = s; while (k < 0.5) { f = metade(f); k *= 2; }
+  const c = tela(w, h), x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(f, 0, 0, w, h);
+  return { c, w, h };
+}
+
+// Aplica a máscara (w x h, de 0 a 1) à imagem original inteira e devolve um canvas com transparência.
+export function aplicarMascara(orig, alfa, w, h) {
+  const mc = tela(w, h), mx = mc.getContext('2d'), d = mx.createImageData(w, h);
+  for (let i = 0; i < alfa.length; i++) d.data[4 * i + 3] = Math.round(alfa[i] * 255);
+  mx.putImageData(d, 0, 0);
+  const rec = tela(orig.width, orig.height), rx = rec.getContext('2d'); rx.drawImage(orig, 0, 0);
+  rx.globalCompositeOperation = 'destination-in'; rx.imageSmoothingQuality = 'high'; rx.drawImage(mc, 0, 0, orig.width, orig.height);
+  return rec;
+}
+
+// Recorte automático, sem editor (usado para todos os quadros de uma animação).
+export async function recortarAuto(img, aoProgresso) {
+  const { c, w, h } = reduzirTrabalho(img), m = ampliarMascara(await segmentar(c, aoProgresso), w, h);
+  return aplicarMascara(img, suavizar(m, w, h, 2), w, h);
 }
