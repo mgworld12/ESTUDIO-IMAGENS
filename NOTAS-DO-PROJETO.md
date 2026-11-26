@@ -17,6 +17,11 @@
 ## Limites do WhatsApp usados (repositório oficial WhatsApp/stickers)
 512 × 512 px; estático ≤ 100 KB; animado ≤ 500 KB, ≤ 10 s, quadros ≥ 8 ms; pacote de 3 a 30, sem misturar; bandeja 96 × 96 ≤ 50 KB; a animação termina no primeiro quadro.
 
-## Pendências e ideias (Fase 3 e depois)
-- Fase 3: remoção de fundo no navegador (modelo local, carregamento só sob pedido), conversor e otimizador em lote, PWA/offline, acabamento e versão 1.0.
-- Melhorias adiadas: WebP sem perda (libwebp em WebAssembly), Web Worker para GIF/WebP, dithering no GIF, arrastar para reordenar quadros, leitura de GIF sem `ImageDecoder` (omggif, MIT), preset do WhatsApp (medida ainda não confirmada), favicon próprio do site (gerar com a ferramenta Favicon).
+## Estado: versão 1.0.0 (Fases 1, 2 e 3 concluídas)
+- Remover fundo: `js/services/fundo.js` (modelo, tamanho de trabalho, aplicar máscara, recorte automático), `js/services/mascara.js` (suavizar, ajustar, pincel), `js/tools/fundo.js` (editor) e `js/core/recorte.js` (editor numa janela, usado por Perfil e Sticker). Use `ort.wasm.min.mjs`, não `ort.min.mjs` (este pede os arquivos .jsep, de WebGPU).
+- Offline: `sw.js` (rede primeiro, cópia guardada como reserva; ignora .wasm, /modelos/ e teste.html). Mude `VERSAO` a cada publicação. Todo arquivo novo do site precisa entrar na lista `ARQUIVOS`, senão não fica disponível offline.
+- Armadilha já vista: ao publicar por "Upload files", mande todos os arquivos que dependem uns dos outros na mesma confirmação.
+
+## Ideias para depois
+- Modelo de remoção de fundo maior (melhor em cabelos), WebP animado sem perda (libwebp em WebAssembly), Web Worker para GIF/WebP, dithering no GIF, arrastar para reordenar quadros, leitura de GIF sem `ImageDecoder` (omggif, MIT), preset do WhatsApp (medida ainda não confirmada em fonte oficial).
+- JXL, AVIF, TIFF, APNG, ampliação com IA, QR Code, extração de paleta, projetos salvos.

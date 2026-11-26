@@ -4,14 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>IMAGE STUDIO</title>
+<meta name="description" content="Ferramentas gratuitas de imagem que rodam no navegador: foto de perfil, stickers, ícones de pasta, favicons, GIFs, remover fundo e converter.">
+<meta name="theme-color" content="#2457f5">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="stylesheet" href="css/base.css">
 </head>
 <body>
 <header class="topo">
   <a href="#" class="logo"><span class="marca" aria-hidden="true"></span>IMAGE STUDIO</a>
-  <button id="tema" class="sec" type="button" aria-label="Alternar tema claro ou escuro">Tema</button>
+  <div class="acoes-topo"><button id="instalar" class="sec" type="button" hidden>Instalar</button><button id="tema" class="sec" type="button" aria-label="Alternar tema claro ou escuro">Tema</button></div>
 </header>
-<main id="app"></main>
+<main id="app"><noscript><p class="sub">O IMAGE STUDIO precisa de JavaScript ativado no navegador.</p></noscript></main>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

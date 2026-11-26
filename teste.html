@@ -15,8 +15,8 @@ button{font:inherit;padding:.5rem 1rem;margin-top:1rem}</style>
 <h2>3. Recursos deste navegador</h2><ul id="rec"></ul>
 <button id="copiar" type="button">Copiar resultado</button> <button id="ia" type="button">Testar a IA de remover fundo (baixa 19 MB)</button>
 <script type="module">
-const ARQUIVOS = ['index.html','css/base.css','js/app.js','js/core/imagem.js','js/core/quadro.js','js/services/exportar.js','js/services/ico.js',
-  'js/tools/perfil.js','js/tools/favicon.js','js/tools/icone-pasta.js','js/tools/sticker.js','js/tools/animacao.js','js/tools/conversor.js','js/tools/fundo.js','js/services/mascara.js','js/services/fundo.js','js/services/gif.js','js/services/webp-anim.js','js/services/animados.js','js/services/sticker-anim.js','vendor/gifenc.esm.js','js/utils/avisar.js','js/data/presets-redes.js'];
+const ARQUIVOS = ['index.html','manifest.webmanifest','sw.js','favicon.ico','icons/icon-192.png','icons/icon-512.png','icons/icon-maskable-512.png','icons/apple-touch-icon.png','css/base.css','js/app.js','js/core/imagem.js','js/core/quadro.js','js/services/exportar.js','js/services/ico.js',
+  'js/tools/perfil.js','js/tools/favicon.js','js/tools/icone-pasta.js','js/tools/sticker.js','js/tools/animacao.js','js/tools/conversor.js','js/tools/fundo.js','js/core/recorte.js','js/services/mascara.js','js/services/fundo.js','js/services/gif.js','js/services/webp-anim.js','js/services/animados.js','js/services/sticker-anim.js','vendor/gifenc.esm.js','js/utils/avisar.js','js/data/presets-redes.js'];
 let falhas = 0, texto = [];
 const linha = (ul, cls, msg) => { const li = Object.assign(document.createElement('li'), { className: cls, textContent: msg }); document.getElementById(ul).append(li); texto.push((cls === 'ok' ? 'OK   ' : cls === 'erro' ? 'ERRO ' : 'INFO ') + msg); if (cls === 'erro') falhas++; };
 const base = location.href.replace(/[^/]*$/, '');
@@ -34,7 +34,7 @@ const tenta = async (nome, fn) => { try { const r = await fn(); linha('fun', 'ok
 let ex, ico, pr;
 await tenta('Módulos carregam (exportar, ico, avisar, imagem, quadro, perfil, favicon, ícone de pasta, sticker)', async () => {
   ex = await import('./js/services/exportar.js'); ico = await import('./js/services/ico.js');
-  for (const m of ['utils/avisar', 'core/imagem', 'core/quadro', 'tools/perfil', 'tools/favicon', 'tools/icone-pasta', 'tools/sticker', 'tools/animacao', 'tools/conversor', 'tools/fundo', 'services/mascara', 'services/fundo']) await import(`./js/${m}.js`);
+  for (const m of ['utils/avisar', 'core/imagem', 'core/quadro', 'tools/perfil', 'tools/favicon', 'tools/icone-pasta', 'tools/sticker', 'tools/animacao', 'tools/conversor', 'tools/fundo', 'services/mascara', 'services/fundo', 'core/recorte']) await import(`./js/${m}.js`);
   pr = await import('./js/data/presets-redes.js');
 });
 const tela = () => { const c = document.createElement('canvas'); c.width = c.height = 16; const x = c.getContext('2d'); x.fillStyle = '#2457f5'; x.fillRect(0, 0, 16, 16); return c; };
@@ -67,6 +67,8 @@ rec('OffscreenCanvas', 'OffscreenCanvas' in self);
 rec('Web Worker em módulo', (() => { try { new Worker(URL.createObjectURL(new Blob([''], { type: 'text/javascript' })), { type: 'module' }).terminate(); return true; } catch { return false; } })());
 rec('Canvas roundRect (cantos arredondados)', 'roundRect' in CanvasRenderingContext2D.prototype);
 rec('Área de transferência (copiar código)', !!navigator.clipboard);
+{ const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration(base) : null, ks = 'caches' in self ? await caches.keys() : [];
+  rec('Uso offline instalado (service worker)', !!reg, reg ? 'versão guardada: ' + (ks.find(k => k.startsWith('image-studio-v')) || 'nenhuma') : 'abra a página inicial uma vez e recarregue este teste'); }
 linha('rec', 'info', 'Navegador: ' + navigator.userAgent);
 
 document.getElementById('resumo').textContent = falhas ? `${falhas} problema(s) encontrado(s). Veja os itens com ✖ abaixo.` : 'Tudo certo: nenhum problema encontrado.';
