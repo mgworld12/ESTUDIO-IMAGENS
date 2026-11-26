@@ -5,6 +5,7 @@ import { montarSticker } from './tools/sticker.js';
 import { montarAnimacao } from './tools/animacao.js';
 import { montarConversor } from './tools/conversor.js';
 import { montarFundo } from './tools/fundo.js';
+import { avisar } from './utils/avisar.js';
 
 const FERRAMENTAS = [
   { id: 'perfil', nome: 'Foto de perfil', desc: 'Redonda, quadrada ou com cantos arredondados, em vários tamanhos.', montar: montarPerfil },
@@ -41,3 +42,11 @@ function render() {
   app.append(cab, corpo); f.montar(corpo);
 }
 addEventListener('hashchange', render); render();
+
+// ---- PWA: uso offline e instalação como aplicativo ----
+if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+let convite = null; const bInstalar = document.getElementById('instalar');
+addEventListener('beforeinstallprompt', ev => { ev.preventDefault(); convite = ev; bInstalar.hidden = false; });
+bInstalar.onclick = async () => { if (!convite) return; convite.prompt(); await convite.userChoice; convite = null; bInstalar.hidden = true; };
+addEventListener('appinstalled', () => { bInstalar.hidden = true; });
+addEventListener('offline', () => avisar('Sem internet: as ferramentas continuam funcionando.', 'ok'));
