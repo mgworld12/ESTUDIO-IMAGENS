@@ -51,3 +51,5 @@ textarea{width:100%;font:.85rem ui-monospace,Consolas,monospace;background:var(-
 .tab .menos{color:var(--ok)}.tab .mais{color:var(--erro)}.tab button{padding:.2rem .5rem;font-size:.85rem;margin-left:.2rem}progress{width:100%;accent-color:var(--acento)}
 .modal-recorte{width:min(60rem,96vw);max-height:92vh;overflow:auto;background:var(--painel);color:var(--tinta);border:1px solid var(--linha);border-radius:14px;padding:1rem}.modal-recorte::backdrop{background:rgba(0,0,0,.55)}.modal-recorte h2{margin:.2rem 0 .8rem;font-size:1.2rem}
 .acoes-topo{display:flex;gap:.5rem}
+.q.sel{outline:2px solid var(--acento);outline-offset:1px}.q canvas{cursor:pointer}
+details label{margin:.3rem 0;flex-wrap:wrap}details input[type=number]{width:4.5rem}
