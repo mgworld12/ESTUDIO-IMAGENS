@@ -5,12 +5,13 @@ import { codificarGif } from '../services/gif.js';
 import { montarWebpAnimado, validarWebpAnimado } from '../services/webp-anim.js';
 import { lerQuadros } from '../services/animados.js';
 import { montarEdicao } from './animacao-edicao.js';
+import { montarVideo } from './animacao-video.js';
 import { avisar } from '../utils/avisar.js';
 
 const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 
 export function montarAnimacao(raiz) {
-  const e = { tam: 256, ajuste: 'inteira', transp: true, cor: '#ffffff', ms: 200, rep: 'inf', n: 3, cores: 256, matte: '#ffffff', qw: 0.9 };
+  const e = { tam: 256, ajuste: 'inteira', transp: true, cor: '#ffffff', ms: 200, rep: 'inf', n: 3, cores: 256, matte: '#ffffff', qw: 0.9, forma: 'quad' };
   const sel = new Set(), hist = [], fut = []; let ult = -1;
   let edicao = null;
   let frames = [], cache = [], idx = 0, timer = 0, tocando = true, cancelar = false;
@@ -24,6 +25,7 @@ export function montarAnimacao(raiz) {
       <fieldset><legend>Quadros</legend><div class="quadros" id="quadros"></div><div class="acoes"><button type="button" id="mais">Adicionar imagens</button><button type="button" id="semfundo" title="Usa IA no navegador; leva alguns segundos por quadro">Remover fundo de todos os quadros</button></div></fieldset>
       <label>Tempo padrão <input type="number" id="ms" min="20" max="10000" step="10" value="200"> ms <button type="button" id="aplicar">Aplicar a todos</button></label>
       <label>Tamanho <select id="tam"><option>128</option><option selected>256</option><option>320</option><option>480</option></select> px</label>
+      <label>Formato do quadro <select id="fmtq"><option value="quad" selected>Quadrado</option><option value="orig">Proporção da imagem</option></select></label>
       <fieldset><legend>Ajuste</legend><label><input type="radio" name="ajuste" value="inteira" checked> Imagem inteira</label><label><input type="radio" name="ajuste" value="preencher"> Preencher o quadro</label></fieldset>
       <label><input type="checkbox" id="transp" checked> Fundo transparente</label><label>Cor do fundo <input type="color" id="cor" value="#ffffff"></label>
       <label>Repetição <select id="rep"><option value="inf">Infinita</option><option value="1">Tocar 1 vez</option><option value="n">Tocar N vezes</option></select><input type="number" id="n" min="2" max="100" value="3" hidden></label>
@@ -44,12 +46,14 @@ export function montarAnimacao(raiz) {
   const $ = s => raiz.querySelector(s), cv = $('#cv'), cx = cv.getContext('2d'), arq = $('#arq');
   $('form').onsubmit = ev => ev.preventDefault(); $('#bArq').onclick = $('#mais').onclick = () => arq.click();
 
-  function render(f, S) {
-    const c = Object.assign(document.createElement('canvas'), { width: S, height: S }), x = c.getContext('2d');
-    if (!e.transp) { x.fillStyle = e.cor; x.fillRect(0, 0, S, S); }
-    let s = (e.ajuste === 'inteira' ? Math.min : Math.max)(S / f.img.width, S / f.img.height), im = f.img;
+  // Tamanho do quadro: quadrado (largura x largura) ou com a proporção do primeiro quadro.
+  const dims = () => { if (e.forma !== 'orig' || !frames.length) return [e.tam, e.tam]; const f = frames[0].img; return [e.tam, Math.max(1, Math.round(e.tam * f.height / f.width))]; };
+  function render(f, S, H = S) {
+    const c = Object.assign(document.createElement('canvas'), { width: S, height: H }), x = c.getContext('2d');
+    if (!e.transp) { x.fillStyle = e.cor; x.fillRect(0, 0, S, H); }
+    let s = (e.ajuste === 'inteira' ? Math.min : Math.max)(S / f.img.width, H / f.img.height), im = f.img;
     while (s < 0.5) { im = metade(im); s *= 2; }
-    const w = im.width * s, h = im.height * s; x.imageSmoothingQuality = 'high'; x.drawImage(im, (S - w) / 2, (S - h) / 2, w, h); return c;
+    const w = im.width * s, h = im.height * s; x.imageSmoothingQuality = 'high'; x.drawImage(im, (S - w) / 2, (H - h) / 2, w, h); return c;
   }
   const resumo = () => { $('#info').textContent = `${frames.length} quadro(s) · ${(frames.reduce((s, f) => s + f.ms, 0) / 1000).toFixed(1)} s`; };
   function tocar() {
@@ -65,7 +69,7 @@ export function montarAnimacao(raiz) {
   function listar() {
     $('#quadros').replaceChildren(...frames.map((f, i) => {
       const d = document.createElement('div'), t = Object.assign(document.createElement('canvas'), { width: 64, height: 64 });
-      d.className = sel.has(i) ? 'q sel' : 'q'; t.dataset.s = i; t.getContext('2d').drawImage(cache[i], 0, 0, 64, 64); d.append(t);
+      d.className = sel.has(i) ? 'q sel' : 'q'; t.dataset.s = i; t.getContext('2d').drawImage(cache[i], (64 - 64 * Math.min(1, cache[i].width / cache[i].height)) / 2, (64 - 64 * Math.min(1, cache[i].height / cache[i].width)) / 2, 64 * Math.min(1, cache[i].width / cache[i].height), 64 * Math.min(1, cache[i].height / cache[i].width)); d.append(t);
       d.insertAdjacentHTML('beforeend', `<div class="bq"><button type="button" data-a="e" data-i="${i}" aria-label="Mover para antes"${i ? '' : ' disabled'}>◀</button><button type="button" data-a="d" data-i="${i}" aria-label="Mover para depois"${i < frames.length - 1 ? '' : ' disabled'}>▶</button><button type="button" data-a="c" data-i="${i}" aria-label="Duplicar quadro">⧉</button><button type="button" data-a="x" data-i="${i}" aria-label="Remover quadro">✕</button></div><input type="number" class="qms" data-i="${i}" min="20" max="10000" step="10" value="${f.ms}" aria-label="Tempo do quadro ${i + 1} em milissegundos">`);
       return d;
     }));
@@ -73,7 +77,7 @@ export function montarAnimacao(raiz) {
   }
   function refazer() {
     $('#zona').hidden = frames.length > 0; $('#editor').hidden = !frames.length;
-    cache = frames.map(f => render(f, e.tam)); cv.width = cv.height = e.tam; idx = 0; listar(); resumo(); tocar();
+    const [W, H] = dims(); cache = frames.map(f => render(f, W, H)); cv.width = W; cv.height = H; cv.style.aspectRatio = `${W} / ${H}`; idx = 0; listar(); resumo(); tocar();
     [...sel].forEach(i => { if (i >= frames.length) sel.delete(i); });
   }
   $('#quadros').onclick = ev => {
@@ -110,6 +114,7 @@ export function montarAnimacao(raiz) {
   $('#ms').oninput = ev => { e.ms = Math.max(20, +ev.target.value || 200); };
   $('#aplicar').onclick = () => { salvarHist(); frames.forEach(f => f.ms = e.ms); listar(); resumo(); };
   $('#tam').onchange = ev => { e.tam = +ev.target.value; refazer(); };
+  $('#fmtq').onchange = ev => { e.forma = ev.target.value; refazer(); };
   raiz.querySelectorAll('[name=ajuste]').forEach(r => r.onchange = () => { e.ajuste = r.value; refazer(); });
   $('#transp').onchange = ev => { e.transp = ev.target.checked; refazer(); };
   $('#cor').oninput = ev => { e.cor = ev.target.value; e.transp = false; $('#transp').checked = false; refazer(); };
@@ -128,28 +133,28 @@ export function montarAnimacao(raiz) {
     cancelar = false; ocupar(true);
     try {
       const blob = await gerar();
-      baixar(blob, nome); $('#prog').textContent = `Pronto: ${Math.max(1, Math.round(blob.size / 1024))} KB, ${frames.length} quadros, ${e.tam} × ${e.tam} px.`; avisar('Arquivo baixado.', 'ok');
+      baixar(blob, nome); $('#prog').textContent = `Pronto: ${Math.max(1, Math.round(blob.size / 1024))} KB, ${frames.length} quadros, ${dims().join(' × ')} px.`; avisar('Arquivo baixado.', 'ok');
     } catch (err) { $('#prog').textContent = ''; avisar(err.message, err.message === 'Cancelado.' ? 'ok' : 'erro'); }
     finally { ocupar(false); }
   }
   const progresso = (i, n) => { $('#prog').textContent = `Gerando quadro ${i} de ${n}…`; };
 
   $('#gif').onclick = () => exportar('animacao.gif', async () => {
-    const S = e.tam, dados = frames.map(f => ({ data: render(f, S).getContext('2d').getImageData(0, 0, S, S).data, ms: f.ms }));
-    const blob = await codificarGif(dados, S, S, { cores: e.cores, loops: e.rep === 'inf' ? 0 : e.rep === '1' ? -1 : e.n - 1, transp: e.transp, matte: hex(e.matte), aoProgresso: progresso, cancelado: () => cancelar });
+    const [W, H] = dims(), dados = frames.map(f => ({ data: render(f, W, H).getContext('2d').getImageData(0, 0, W, H).data, ms: f.ms }));
+    const blob = await codificarGif(dados, W, H, { cores: e.cores, loops: e.rep === 'inf' ? 0 : e.rep === '1' ? -1 : e.n - 1, transp: e.transp, matte: hex(e.matte), aoProgresso: progresso, cancelado: () => cancelar });
     if (await lerAssinatura(blob) !== 'gif') throw new Error('Não foi possível gerar um GIF válido.');
     return blob;
   });
 
   $('#webp').onclick = () => exportar('animacao.webp', async () => {
-    const S = e.tam, partes = [];
+    const [W, H] = dims(), partes = [];
     for (let i = 0; i < frames.length; i++) {
       if (cancelar) throw new Error('Cancelado.');
-      const b = await new Promise(r => render(frames[i], S).toBlob(r, 'image/webp', e.qw));
+      const b = await new Promise(r => render(frames[i], W, H).toBlob(r, 'image/webp', e.qw));
       if (!b || await lerAssinatura(b) !== 'webp') throw new Error('Este navegador não gera WebP. Use Chrome, Edge ou Firefox.');
       partes.push({ blob: b, ms: frames[i].ms }); progresso(i + 1, frames.length); await new Promise(r => setTimeout(r));
     }
-    const blob = await montarWebpAnimado(partes, S, S, e.rep === 'inf' ? 0 : e.rep === '1' ? 1 : e.n);
+    const blob = await montarWebpAnimado(partes, W, H, e.rep === 'inf' ? 0 : e.rep === '1' ? 1 : e.n);
     if ((await validarWebpAnimado(blob)).quadros !== frames.length) throw new Error('O WebP animado gerado não ficou com todos os quadros.');
     return blob;
   });
@@ -202,4 +207,8 @@ export function montarAnimacao(raiz) {
   edicao = { raiz, sel, listar, salvarHist, desfazer, refazer: refazerH, frames: () => frames, progresso: t => { $('#prog').textContent = t; },
     definir: (nf, manterSel) => { frames = nf; if (!manterSel) sel.clear(); refazer(); } };
   montarEdicao(edicao);
+
+  // ---- Painel "Vídeo": abrir um vídeo curto e transformá-lo em quadros ----
+  montarVideo({ raiz, ocupar, progresso: t => { $('#prog').textContent = t; }, cancelado: () => cancelar,
+    anexar: qs => { salvarHist(); frames.push(...qs); sel.clear(); e.forma = 'orig'; $('#fmtq').value = 'orig'; refazer(); } });
 }
