@@ -53,3 +53,4 @@ textarea{width:100%;font:.85rem ui-monospace,Consolas,monospace;background:var(-
 .acoes-topo{display:flex;gap:.5rem}
 .q.sel{outline:2px solid var(--acento);outline-offset:1px}.q canvas{cursor:pointer}
 details label{margin:.3rem 0;flex-wrap:wrap}details input[type=number]{width:4.5rem}
+#vid{max-width:100%;max-height:18rem;border-radius:8px;background:#000}
