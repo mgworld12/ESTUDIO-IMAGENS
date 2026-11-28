@@ -4,12 +4,15 @@ import { gerarStickerAnimado, LADO } from '../services/sticker-anim.js';
 import { codificarGif } from '../services/gif.js';
 import { montarWebpAnimado, validarWebpAnimado } from '../services/webp-anim.js';
 import { lerQuadros } from '../services/animados.js';
+import { montarEdicao } from './animacao-edicao.js';
 import { avisar } from '../utils/avisar.js';
 
 const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 
 export function montarAnimacao(raiz) {
   const e = { tam: 256, ajuste: 'inteira', transp: true, cor: '#ffffff', ms: 200, rep: 'inf', n: 3, cores: 256, matte: '#ffffff', qw: 0.9 };
+  const sel = new Set(), hist = [], fut = []; let ult = -1;
+  let edicao = null;
   let frames = [], cache = [], idx = 0, timer = 0, tocando = true, cancelar = false;
   raiz.innerHTML = `
   <div class="zona" id="zona"><p><strong>Arraste várias imagens para cá</strong>, cole com Ctrl+V ou escolha os arquivos. Cada imagem vira um quadro; GIF e WebP animados são separados em quadros.</p>
@@ -54,20 +57,34 @@ export function montarAnimacao(raiz) {
     idx %= cache.length; cx.clearRect(0, 0, cv.width, cv.height); cx.drawImage(cache[idx], 0, 0);
     timer = setTimeout(tocar, frames[idx].ms); idx++;
   }
+  // Desfazer e refazer: guarda a lista de quadros antes de cada alteração (até 20 passos).
+  const copia = () => frames.map(f => ({ ...f }));
+  const salvarHist = () => { hist.push(copia()); if (hist.length > 20) hist.shift(); fut.length = 0; };
+  const desfazer = () => { if (!hist.length) return avisar('Nada para desfazer.', 'ok'); fut.push(copia()); frames = hist.pop(); sel.clear(); refazer(); };
+  const refazerH = () => { if (!fut.length) return avisar('Nada para refazer.', 'ok'); hist.push(copia()); frames = fut.pop(); sel.clear(); refazer(); };
   function listar() {
     $('#quadros').replaceChildren(...frames.map((f, i) => {
       const d = document.createElement('div'), t = Object.assign(document.createElement('canvas'), { width: 64, height: 64 });
-      d.className = 'q'; t.getContext('2d').drawImage(cache[i], 0, 0, 64, 64); d.append(t);
+      d.className = sel.has(i) ? 'q sel' : 'q'; t.dataset.s = i; t.getContext('2d').drawImage(cache[i], 0, 0, 64, 64); d.append(t);
       d.insertAdjacentHTML('beforeend', `<div class="bq"><button type="button" data-a="e" data-i="${i}" aria-label="Mover para antes"${i ? '' : ' disabled'}>◀</button><button type="button" data-a="d" data-i="${i}" aria-label="Mover para depois"${i < frames.length - 1 ? '' : ' disabled'}>▶</button><button type="button" data-a="c" data-i="${i}" aria-label="Duplicar quadro">⧉</button><button type="button" data-a="x" data-i="${i}" aria-label="Remover quadro">✕</button></div><input type="number" class="qms" data-i="${i}" min="20" max="10000" step="10" value="${f.ms}" aria-label="Tempo do quadro ${i + 1} em milissegundos">`);
       return d;
     }));
+    edicao?.aoSelecionar?.();
   }
   function refazer() {
     $('#zona').hidden = frames.length > 0; $('#editor').hidden = !frames.length;
     cache = frames.map(f => render(f, e.tam)); cv.width = cv.height = e.tam; idx = 0; listar(); resumo(); tocar();
+    [...sel].forEach(i => { if (i >= frames.length) sel.delete(i); });
   }
   $('#quadros').onclick = ev => {
+    const mini = ev.target.closest('canvas[data-s]');
+    if (mini) {   // clique na miniatura: seleciona; com Shift, seleciona o trecho desde o último clique
+      const i = +mini.dataset.s;
+      if (ev.shiftKey && ult >= 0) { for (let k = Math.min(ult, i); k <= Math.max(ult, i); k++) sel.add(k); } else if (sel.has(i)) sel.delete(i); else sel.add(i);
+      ult = i; listar(); return;
+    }
     const b = ev.target.closest('button'); if (!b) return; const i = +b.dataset.i, a = b.dataset.a;
+    salvarHist(); sel.clear();
     if (a === 'x') frames.splice(i, 1); else if (a === 'c') frames.splice(i + 1, 0, { ...frames[i] });
     else { const j = a === 'e' ? i - 1 : i + 1; [frames[i], frames[j]] = [frames[j], frames[i]]; }
     refazer();
@@ -75,6 +92,7 @@ export function montarAnimacao(raiz) {
   $('#quadros').onchange = ev => { if (ev.target.classList.contains('qms')) { frames[+ev.target.dataset.i].ms = Math.max(20, +ev.target.value || e.ms); resumo(); } };
 
   const adicionar = async files => {
+    salvarHist();
     for (const f of files) {
       try {
         const q = await lerQuadros(f);
@@ -90,7 +108,7 @@ export function montarAnimacao(raiz) {
   document.onpaste = ev => { const f = [...(ev.clipboardData?.files || [])]; if (f.length) adicionar(f); };
 
   $('#ms').oninput = ev => { e.ms = Math.max(20, +ev.target.value || 200); };
-  $('#aplicar').onclick = () => { frames.forEach(f => f.ms = e.ms); listar(); resumo(); };
+  $('#aplicar').onclick = () => { salvarHist(); frames.forEach(f => f.ms = e.ms); listar(); resumo(); };
   $('#tam').onchange = ev => { e.tam = +ev.target.value; refazer(); };
   raiz.querySelectorAll('[name=ajuste]').forEach(r => r.onchange = () => { e.ajuste = r.value; refazer(); });
   $('#transp').onchange = ev => { e.transp = ev.target.checked; refazer(); };
@@ -170,6 +188,7 @@ export function montarAnimacao(raiz) {
 
   // ---- Remover fundo de todos os quadros (IA local; baixa o motor na primeira vez) ----
   $('#semfundo').onclick = () => trabalho(async () => {
+    salvarHist();
     const { recortarAuto } = await import('../services/fundo.js');
     for (let i = 0; i < frames.length; i++) {
       if (cancelar) throw new Error('Cancelado.');
@@ -178,4 +197,9 @@ export function montarAnimacao(raiz) {
     }
     e.transp = true; $('#transp').checked = true; refazer(); $('#prog').textContent = `Fundo removido de ${frames.length} quadros.`;
   });
+
+  // ---- Painel "Editar quadros" (selecionar, inverter, girar, ajustes, texto) ----
+  edicao = { raiz, sel, listar, salvarHist, desfazer, refazer: refazerH, frames: () => frames, progresso: t => { $('#prog').textContent = t; },
+    definir: (nf, manterSel) => { frames = nf; if (!manterSel) sel.clear(); refazer(); } };
+  montarEdicao(edicao);
 }
