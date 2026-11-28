@@ -1,5 +1,5 @@
 // sw.js — uso offline. Mude VERSAO a cada publicação para que os arquivos guardados sejam atualizados.
-const VERSAO = 'image-studio-v1.1.0';
+const VERSAO = 'image-studio-v1.2.0';
 const ARQUIVOS = [
   './',
   'index.html',
@@ -23,8 +23,10 @@ const ARQUIVOS = [
   'js/services/mascara.js',
   'js/services/quadros.js',
   'js/services/sticker-anim.js',
+  'js/services/video.js',
   'js/services/webp-anim.js',
   'js/tools/animacao-edicao.js',
+  'js/tools/animacao-video.js',
   'js/tools/animacao.js',
   'js/tools/conversor.js',
   'js/tools/favicon.js',

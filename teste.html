@@ -16,7 +16,7 @@ button{font:inherit;padding:.5rem 1rem;margin-top:1rem}</style>
 <button id="copiar" type="button">Copiar resultado</button> <button id="ia" type="button">Testar a IA de remover fundo (baixa 19 MB)</button>
 <script type="module">
 const ARQUIVOS = ['index.html','manifest.webmanifest','sw.js','favicon.ico','icons/icon-192.png','icons/icon-512.png','icons/icon-maskable-512.png','icons/apple-touch-icon.png','css/base.css','js/app.js','js/core/imagem.js','js/core/quadro.js','js/services/exportar.js','js/services/ico.js',
-  'js/tools/perfil.js','js/tools/favicon.js','js/tools/icone-pasta.js','js/tools/sticker.js','js/tools/animacao.js','js/tools/conversor.js','js/tools/animacao-edicao.js','js/services/quadros.js','js/services/imagem-ops.js','js/tools/fundo.js','js/core/recorte.js','js/services/mascara.js','js/services/fundo.js','js/services/gif.js','js/services/webp-anim.js','js/services/animados.js','js/services/sticker-anim.js','vendor/gifenc.esm.js','js/utils/avisar.js','js/data/presets-redes.js'];
+  'js/tools/perfil.js','js/tools/favicon.js','js/tools/icone-pasta.js','js/tools/sticker.js','js/tools/animacao.js','js/tools/conversor.js','js/tools/animacao-edicao.js','js/services/quadros.js','js/services/imagem-ops.js','js/tools/animacao-video.js','js/services/video.js','js/tools/fundo.js','js/core/recorte.js','js/services/mascara.js','js/services/fundo.js','js/services/gif.js','js/services/webp-anim.js','js/services/animados.js','js/services/sticker-anim.js','vendor/gifenc.esm.js','js/utils/avisar.js','js/data/presets-redes.js'];
 let falhas = 0, texto = [];
 const linha = (ul, cls, msg) => { const li = Object.assign(document.createElement('li'), { className: cls, textContent: msg }); document.getElementById(ul).append(li); texto.push((cls === 'ok' ? 'OK   ' : cls === 'erro' ? 'ERRO ' : 'INFO ') + msg); if (cls === 'erro') falhas++; };
 const base = location.href.replace(/[^/]*$/, '');
@@ -34,7 +34,7 @@ const tenta = async (nome, fn) => { try { const r = await fn(); linha('fun', 'ok
 let ex, ico, pr;
 await tenta('Módulos carregam (exportar, ico, avisar, imagem, quadro, perfil, favicon, ícone de pasta, sticker)', async () => {
   ex = await import('./js/services/exportar.js'); ico = await import('./js/services/ico.js');
-  for (const m of ['utils/avisar', 'core/imagem', 'core/quadro', 'tools/perfil', 'tools/favicon', 'tools/icone-pasta', 'tools/sticker', 'tools/animacao', 'tools/conversor', 'tools/fundo', 'services/mascara', 'services/fundo', 'core/recorte', 'tools/animacao-edicao', 'services/quadros', 'services/imagem-ops']) await import(`./js/${m}.js`);
+  for (const m of ['utils/avisar', 'core/imagem', 'core/quadro', 'tools/perfil', 'tools/favicon', 'tools/icone-pasta', 'tools/sticker', 'tools/animacao', 'tools/conversor', 'tools/fundo', 'services/mascara', 'services/fundo', 'core/recorte', 'tools/animacao-edicao', 'services/quadros', 'services/imagem-ops', 'tools/animacao-video', 'services/video']) await import(`./js/${m}.js`);
   pr = await import('./js/data/presets-redes.js');
 });
 const tela = () => { const c = document.createElement('canvas'); c.width = c.height = 16; const x = c.getContext('2d'); x.fillStyle = '#2457f5'; x.fillRect(0, 0, 16, 16); return c; };
@@ -63,6 +63,11 @@ if (ex) {
     if (inv !== '3,2,1' || g.width !== 20 || g.height !== 40 || r.width !== 20 || r.height !== 10) throw new Error('resultado inesperado');
     return 'ordem invertida, giro de 90° e recorte corretos';
   });
+  await tenta('Abrir vídeo (cálculo de quadros e limites)', async () => {
+    const V = await import('./js/services/video.js'), p = V.planejar({ ini: 0, fim: 5, fps: 10, largura: 320, w: 1280, h: 720, duracao: 12 });
+    if (p.quadros !== 50 || p.lw !== 320 || p.lh !== 180 || V.validar(p) !== '' || !V.validar(V.planejar({ ini: 0, fim: 40, fps: 10, largura: 320, w: 1280, h: 720, duracao: 60 }))) throw new Error('resultado inesperado');
+    return `50 quadros de ${p.lw} × ${p.lh} px; limite de ${V.LIMITE_S} s aplicado`;
+  });
   if (ico) await tenta('ICO multi-tamanho', async () => { const b = await ico.gerarIco([16, 32, 48], t => { const c = document.createElement('canvas'); c.width = c.height = t; return c; }); return (await ex.lerAssinatura(b)) === 'ico' ? 'assinatura ico' : (() => { throw new Error('assinatura inválida'); })(); });
 }
 if (pr) await tenta('Presets de redes sociais', async () => pr.PRESETS.length + ' redes');
@@ -84,6 +89,8 @@ await tenta('Uso offline (o service worker instala e guarda os arquivos)', async
   const nome = (await caches.keys()).find(k => k.startsWith('image-studio-v')); if (!nome) throw new Error('nenhuma cópia guardada ainda; recarregue este teste');
   return `ativo, ${lista.length} arquivos na lista, ${(await (await caches.open(nome)).keys()).length} guardados (${nome})`;
 });
+rec('Leitura de vídeo MP4 (H.264)', document.createElement('video').canPlayType('video/mp4; codecs="avc1.42E01E"') !== '', 'o formato mais comum');
+rec('Leitura de vídeo WebM', document.createElement('video').canPlayType('video/webm; codecs="vp9"') !== '');
 linha('rec', 'info', 'Navegador: ' + navigator.userAgent);
 
 document.getElementById('resumo').textContent = falhas ? `${falhas} problema(s) encontrado(s). Veja os itens com ✖ abaixo.` : 'Tudo certo: nenhum problema encontrado.';

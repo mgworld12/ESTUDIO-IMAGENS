@@ -8,7 +8,7 @@ Ferramentas gratuitas de imagem que rodam 100% no navegador: nada é enviado a s
 | Ícone de pasta | `.ico` com 7 tamanhos + script `.bat` para aplicar no Windows + instruções manuais |
 | Favicon | `favicon.ico`, PNGs, `site.webmanifest` e o código HTML pronto |
 | Sticker | Figurinha estática WebP 512 × 512 (≤ 100 KB), contorno, texto, remover fundo e pacote para WhatsApp |
-| GIF e animação | Quadros, tempos, repetição, edição em lote dos quadros (selecionar, inverter, girar, recortar, ajustes, texto, desfazer); GIF e WebP animado; importa GIF e WebP animados; remover fundo de todos os quadros; sticker animado (≤ 500 KB, ≤ 10 s) |
+| GIF e animação | Abrir vídeo curto (trecho, quadros por segundo, largura) e transformá-lo em quadros; quadros, tempos, repetição, edição em lote dos quadros (selecionar, inverter, girar, recortar, ajustes, texto, desfazer); GIF e WebP animado; importa GIF e WebP animados; remover fundo de todos os quadros; sticker animado (≤ 500 KB, ≤ 10 s) |
 | Remover fundo (link na tela inicial) | IA local (U²-Net pequeno): recorte, suavizar, contrair/expandir, pincel, PNG/WebP/JPG |
 | Converter e otimizar (link na tela inicial) | Lote de imagens para WebP, JPG, PNG, GIF ou ICO, com qualidade, redução de tamanho e comparação |
 
@@ -49,3 +49,4 @@ Detalhes e licenças em `vendor/README.md`. ZIP, `.ico` e WebP animado são gera
 - 0.6 Converter e otimizar. 0.7 Remover fundo (IA local). 0.8 Remover fundo dentro de Perfil, Sticker e Animação.
 - **1.0.0** Uso offline (PWA), instalação, ícones, README e acabamento.
 - **1.1.0** Editor de quadros (GIF e animação): selecionar, inverter, ida e volta, velocidade, remover repetidos, girar, espelhar, recortar, ajustes de cor, texto e desfazer/refazer.
+- **1.2.0** Abrir vídeo curto (até 30 s) e salvar como GIF ou WebP animado; quadro com a proporção da imagem (não só quadrado).
